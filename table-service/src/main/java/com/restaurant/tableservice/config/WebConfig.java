@@ -33,7 +33,13 @@ public class WebConfig implements WebMvcConfigurer {
     public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilter() {
         FilterRegistrationBean<JwtAuthenticationFilter> registrationBean = new FilterRegistrationBean<>();
         registrationBean.setFilter(jwtAuthenticationFilter);
-        registrationBean.addUrlPatterns("/api/tables/*");
+        // Cover nested table routes: /{id}/reservations, /reservations/my, /{id}/reservations/availability, ...
+        registrationBean.addUrlPatterns(
+                "/api/tables/*",
+                "/api/tables/*/*",
+                "/api/tables/*/*/*",
+                "/api/tables/*/*/*/*"
+        );
         return registrationBean;
     }
 }

@@ -39,7 +39,7 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
         return ResponseEntity.ok(Map.of(
-                "message", "Đăng ký thành công. Vui lòng kiểm tra email và bấm link xác thực để kích hoạt tài khoản."
+                "message", "Nếu thông tin hợp lệ, hệ thống đã gửi OTP tới email để bạn xác thực tài khoản."
         ));
     }
 
@@ -53,6 +53,18 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "message", "Xác thực email thành công! Bạn có thể đăng nhập ngay bây giờ.",
                 "redirect", frontendUrl + "/login?verified=true"
+        ));
+    }
+
+    /**
+     * POST /api/users/verify-otp?email=xxx&otp=xxxxxx
+     * Xác thực email bằng OTP 6 chữ số.
+     */
+    @PostMapping("/verify-otp")
+    public ResponseEntity<Map<String, String>> verifyOtp(@RequestParam String email, @RequestParam String otp) {
+        authService.verifyEmailOtp(email, otp);
+        return ResponseEntity.ok(Map.of(
+                "message", "Xác thực email thành công! Bạn có thể đăng nhập ngay bây giờ."
         ));
     }
 

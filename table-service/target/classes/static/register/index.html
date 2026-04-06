@@ -2,60 +2,120 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Đăng ký – Nhà hàng</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="/js/config.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/navbar.js"></script>
+  <style>
+    @media (max-width: 640px) {
+      input, textarea {
+        font-size: 16px !important; /* Prevent zoom on iOS */
+      }
+    }
+  </style>
 </head>
 <body class="min-h-screen bg-gray-50">
   <div id="navbar"></div>
 
-  <div class="min-h-[calc(100vh-56px)] flex items-center justify-center px-4 py-10">
+  <div class="min-h-[calc(100vh-56px)] flex items-center justify-center px-3 sm:px-4 py-6 sm:py-10">
 
     <!-- Form -->
-    <div id="form-card" class="bg-white rounded-2xl shadow-sm border p-8 w-full max-w-sm">
-      <h1 class="text-2xl font-bold text-gray-800 mb-1">Đăng ký tài khoản</h1>
-      <p class="text-gray-500 text-sm mb-6">
+    <div id="form-card" class="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8 w-full max-w-sm">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Đăng ký tài khoản</h1>
+      <p class="text-gray-600 text-sm sm:text-base mb-6">
         Đã có tài khoản?
-        <a href="/login/" class="text-orange-600 hover:underline">Đăng nhập</a>
+        <a href="/login/" class="text-orange-600 hover:underline font-medium">Đăng nhập</a>
       </p>
 
-      <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+      <div id="error-box" class="hidden bg-red-50 border-l-4 border-red-500 text-red-800 rounded-lg px-4 sm:px-5 py-3 sm:py-4 mb-5 sm:mb-6 text-sm">
+        <div class="font-medium mb-1">Có lỗi xảy ra</div>
+        <div id="error-text"></div>
+      </div>
 
-      <form id="register-form" class="space-y-4">
+      <form id="register-form" class="space-y-4 sm:space-y-5">
+        
+        <!-- Họ và tên -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+          <label class="block text-sm sm:text-base font-medium text-gray-800 mb-2">Họ và tên <span class="text-red-500">*</span></label>
           <input id="fullName" type="text" required placeholder="Nguyễn Văn A"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
         </div>
+
+        <!-- Email -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email hoặc số điện thoại</label>
-          <input id="identifier" type="text" required placeholder="email@gmail.com hoặc 0909123456"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          <p class="text-xs text-gray-400 mt-1">Đăng ký bằng email sẽ cần xác thực qua hộp thư.</p>
+          <label class="block text-sm sm:text-base font-medium text-gray-800 mb-2">Email <span class="text-red-500">*</span></label>
+          <input id="email" type="email" required placeholder="email@gmail.com"
+            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
+          <p class="text-xs sm:text-sm text-gray-500 mt-1.5">OTP sẽ được gửi qua email này (không gửi qua SMS).</p>
         </div>
+
+        <!-- Số điện thoại -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Mật khẩu <span class="text-gray-400">(ít nhất 6 ký tự)</span>
-          </label>
-          <input id="password" type="password" required autocomplete="new-password" placeholder="••••••"
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <label class="block text-sm sm:text-base font-medium text-gray-800 mb-2">Số điện thoại <span class="text-red-500">*</span></label>
+          <input id="phoneNumber" type="tel" inputmode="numeric" required placeholder="0909123456"
+            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
+          <p class="text-xs sm:text-sm text-gray-500 mt-1.5">Số điện thoại chỉ dùng để lưu tài khoản, không nhận OTP.</p>
         </div>
-        <button type="submit" id="btn-submit"
-          class="w-full bg-orange-600 text-white font-semibold py-2.5 rounded-lg hover:bg-orange-700 disabled:opacity-60 transition">
-          Đăng ký
+
+        <!-- Mật khẩu -->
+        <div>
+          <label class="block text-sm sm:text-base font-medium text-gray-800 mb-2">Mật khẩu <span class="text-red-500">*</span></label>
+          <input id="password" type="password" required autocomplete="new-password" placeholder="••••••••"
+            class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
+          
+          <!-- Password Requirements -->
+          <div class="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="text-xs sm:text-sm font-medium text-gray-700 mb-2">Mật khẩu phải có:</div>
+            <ul class="space-y-1">
+              <li id="req-length" class="flex items-center text-xs sm:text-sm text-gray-600">
+                <span class="w-5 h-5 mr-2 text-gray-400">✗</span> Ít nhất 8 ký tự
+              </li>
+              <li id="req-lower" class="flex items-center text-xs sm:text-sm text-gray-600">
+                <span class="w-5 h-5 mr-2 text-gray-400">✗</span> Chữ thường (a-z)
+              </li>
+              <li id="req-upper" class="flex items-center text-xs sm:text-sm text-gray-600">
+                <span class="w-5 h-5 mr-2 text-gray-400">✗</span> Chữ hoa (A-Z)
+              </li>
+              <li id="req-digit" class="flex items-center text-xs sm:text-sm text-gray-600">
+                <span class="w-5 h-5 mr-2 text-gray-400">✗</span> Số (0-9)
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Gửi OTP qua email -->
+        <button type="button" id="btn-send-otp"
+          class="w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-semibold py-3 sm:py-3.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-base sm:text-lg mt-6">
+          Gửi OTP qua email
         </button>
+
+        <div id="otp-section" class="hidden mt-2 space-y-4">
+          <div class="rounded-lg border border-orange-200 bg-orange-50 text-orange-800 text-xs sm:text-sm px-3 py-2">
+            Mã OTP đã gửi vào email của bạn. Vui lòng kiểm tra hộp thư (kể cả Spam).
+          </div>
+          <div>
+            <label class="block text-sm sm:text-base font-medium text-gray-800 mb-2">Mã OTP email <span class="text-red-500">*</span></label>
+            <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="Nhập 6 chữ số"
+              class="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-base tracking-widest text-center font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
+          </div>
+          <button type="submit" id="btn-verify-otp"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-3 sm:py-3.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 text-base sm:text-lg">
+            Xác thực OTP và hoàn tất đăng ký
+          </button>
+        </div>
       </form>
     </div>
 
-    <!-- Success -->
-    <div id="success-card" class="hidden bg-white rounded-2xl shadow-sm border p-8 w-full max-w-sm text-center">
-      <div id="success-icon" class="text-5xl mb-4">✅</div>
-      <h2 class="text-xl font-bold text-gray-800 mb-2">Đăng ký thành công!</h2>
-      <p id="success-msg" class="text-gray-500 text-sm mb-6"></p>
-      <a href="/login/" class="inline-block bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-orange-700 transition">
+    <!-- Success Card -->
+    <div id="success-card" class="hidden bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 w-full max-w-sm text-center">
+      <div id="success-icon" class="text-6xl sm:text-7xl mb-4">✅</div>
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Đăng ký thành công!</h2>
+      <p id="success-msg" class="text-sm sm:text-base text-gray-600 mb-6"></p>
+      <a href="/login/" class="inline-block bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-semibold px-6 py-3 sm:py-3 rounded-lg transition-colors duration-200 text-base">
         Đến trang đăng nhập
       </a>
     </div>
@@ -65,47 +125,181 @@
   <script>
     renderNavbar();
 
-    document.getElementById('register-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const btn = document.getElementById('btn-submit');
-      const errorBox = document.getElementById('error-box');
-      const identifier = document.getElementById('identifier').value.trim();
-      const password = document.getElementById('password').value;
+    // Password validation
+    const passwordInput = document.getElementById('password');
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
+    function validatePassword(pwd) {
+      return {
+        length: pwd.length >= 8,
+        lower: /[a-z]/.test(pwd),
+        upper: /[A-Z]/.test(pwd),
+        digit: /\d/.test(pwd),
+      };
+    }
+
+    function updatePasswordRequirements(pwd) {
+      const reqs = validatePassword(pwd);
+      const mapping = {
+        'req-length': reqs.length,
+        'req-lower': reqs.lower,
+        'req-upper': reqs.upper,
+        'req-digit': reqs.digit,
+      };
+
+      for (const [id, isValid] of Object.entries(mapping)) {
+        const el = document.getElementById(id);
+        if (isValid) {
+          el.classList.remove('text-gray-600');
+          el.classList.add('text-green-600');
+          el.querySelector('span').textContent = '✓';
+          el.querySelector('span').classList.remove('text-gray-400');
+          el.querySelector('span').classList.add('text-green-500');
+        } else {
+          el.classList.remove('text-green-600');
+          el.classList.add('text-gray-600');
+          el.querySelector('span').textContent = '✗';
+          el.querySelector('span').classList.remove('text-green-500');
+          el.querySelector('span').classList.add('text-gray-400');
+        }
+      }
+    }
+
+    passwordInput.addEventListener('input', function () {
+      updatePasswordRequirements(this.value);
+    });
+
+    const form = document.getElementById('register-form');
+    const btnSendOtp = document.getElementById('btn-send-otp');
+    const btnVerifyOtp = document.getElementById('btn-verify-otp');
+    const otpSection = document.getElementById('otp-section');
+    const errorBox = document.getElementById('error-box');
+    const errorText = document.getElementById('error-text');
+
+    let otpSentForEmail = '';
+
+    function normalizePhone(input) {
+      return input.replace(/\D/g, '');
+    }
+
+    function readFormData() {
+      return {
+        fullName: document.getElementById('fullName').value.trim(),
+        email: document.getElementById('email').value.trim().toLowerCase(),
+        phoneNumber: normalizePhone(document.getElementById('phoneNumber').value.trim()),
+        password: document.getElementById('password').value,
+      };
+    }
+
+    function showError(msg) {
+      errorText.textContent = msg;
+      errorBox.classList.remove('hidden');
+      errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function validateInput(data) {
+      if (!data.fullName) {
+        showError('Vui lòng nhập họ và tên');
+        return false;
+      }
+      if (!data.email || !data.email.includes('@')) {
+        showError('Vui lòng nhập email hợp lệ');
+        return false;
+      }
+      if (!/^\d{9,11}$/.test(data.phoneNumber)) {
+        showError('Số điện thoại phải có 9-11 chữ số');
+        return false;
+      }
+      if (!passwordPattern.test(data.password)) {
+        showError('Mật khẩu không hợp lệ. Cần tối thiểu 8 ký tự gồm chữ thường, chữ hoa và số.');
+        return false;
+      }
+      return true;
+    }
+
+    btnSendOtp.addEventListener('click', async function () {
       errorBox.classList.add('hidden');
-
-      if (password.length < 6) {
-        errorBox.textContent = 'Mật khẩu phải có ít nhất 6 ký tự';
-        errorBox.classList.remove('hidden');
+      const data = readFormData();
+      if (!validateInput(data)) {
         return;
       }
 
-      btn.disabled = true;
-      btn.textContent = 'Đang đăng ký...';
+      btnSendOtp.disabled = true;
+      btnSendOtp.textContent = 'Đang gửi OTP...';
 
       try {
         await apiFetch('/api/users/register', {
           method: 'POST',
           body: JSON.stringify({
-            identifier,
-            password,
-            fullName: document.getElementById('fullName').value.trim(),
+            fullName: data.fullName,
+            identifier: data.email,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
           }),
         });
 
-        document.getElementById('form-card').classList.add('hidden');
-        const isEmail = identifier.includes('@');
-        document.getElementById('success-icon').textContent = isEmail ? '📧' : '✅';
-        document.getElementById('success-msg').textContent = isEmail
-          ? `Chúng tôi đã gửi email xác thực đến ${identifier}. Vui lòng kiểm tra hộp thư và bấm vào link để kích hoạt tài khoản.`
-          : 'Tài khoản đã được tạo thành công. Bạn có thể đăng nhập ngay.';
-        document.getElementById('success-card').classList.remove('hidden');
+        otpSentForEmail = data.email;
+        otpSection.classList.remove('hidden');
+        btnSendOtp.textContent = 'Gửi lại OTP email';
+        btnSendOtp.disabled = false;
+        document.getElementById('otp').focus();
       } catch (err) {
-        errorBox.textContent = err.message;
-        errorBox.classList.remove('hidden');
-        btn.disabled = false;
-        btn.textContent = 'Đăng ký';
+        const raw = err.message || '';
+        const friendly = raw.includes('Authentication failed')
+          ? 'Không thể xác thực Gmail SMTP. Vui lòng kiểm tra email gửi và App Password trong user-service.'
+          : raw;
+        showError(friendly || 'Không thể gửi OTP. Vui lòng thử lại.');
+        btnSendOtp.disabled = false;
+        btnSendOtp.textContent = 'Gửi OTP qua email';
       }
+    });
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      errorBox.classList.add('hidden');
+
+      const otp = document.getElementById('otp').value.trim();
+      const data = readFormData();
+
+      if (!otpSentForEmail) {
+        showError('Vui lòng bấm Gửi OTP qua email trước khi xác thực.');
+        return;
+      }
+      if (otpSentForEmail !== data.email) {
+        showError('Email đã thay đổi. Vui lòng gửi OTP lại cho email mới.');
+        return;
+      }
+      if (!/^\d{6}$/.test(otp)) {
+        showError('OTP phải gồm đúng 6 chữ số.');
+        return;
+      }
+
+      btnVerifyOtp.disabled = true;
+      btnVerifyOtp.textContent = 'Đang xác thực OTP...';
+
+      try {
+        await apiFetch('/api/users/verify-otp?email=' + encodeURIComponent(data.email) + '&otp=' + encodeURIComponent(otp), {
+          method: 'POST',
+        });
+
+        document.getElementById('form-card').classList.add('hidden');
+        document.getElementById('success-icon').textContent = '✅';
+        document.getElementById('success-msg').textContent = 'Tài khoản đã được tạo và xác thực email thành công. Bạn có thể đăng nhập ngay.';
+        document.getElementById('success-card').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        showError(err.message || 'OTP không hợp lệ hoặc đã hết hạn.');
+        btnVerifyOtp.disabled = false;
+        btnVerifyOtp.textContent = 'Xác thực OTP và hoàn tất đăng ký';
+      }
+    });
+
+    document.getElementById('phoneNumber').addEventListener('input', function () {
+      this.value = normalizePhone(this.value).slice(0, 11);
+    });
+
+    document.getElementById('otp').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
     });
   </script>
 </body>

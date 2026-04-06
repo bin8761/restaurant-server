@@ -889,3 +889,88 @@ Xem chi tiết trong bảng tổng hợp ở trên. Tổng kết theo mức:
 | **Tổng** | **32** | **32** | **0** |
 
 ### ✅ Tất cả bug đã được xử lý!
+
+---
+
+## 7. Scan Bổ Sung (OTP/Register) — 06/04/2026
+
+Sau khi bổ sung luồng đăng ký 2 bước (Gửi OTP email + Nhập OTP), đã quét lại codebase và ghi nhận thêm các issue sau:
+
+| # | Title | File | Mức độ | Trạng thái |
+|---|-------|------|--------|------------|
+| 033 | Rate limit chưa bao phủ endpoint `/api/users/verify-otp` | `user-service/config/WebConfig.java` | 🟠 HIGH | ✅ Đã sửa |
+| 034 | IP rate limit không đáng tin cậy sau API Gateway (không có client IP thực) | `api-gateway/application.yml`, `RateLimitInterceptor.java` | 🔴 CRITICAL | ✅ Đã sửa |
+| 035 | Đăng ký chỉ bằng số điện thoại không có bước xác thực chủ sở hữu | `AuthService.java` | 🟡 MEDIUM | ✅ Đã sửa |
+| 036 | Lộ thông tin tồn tại tài khoản qua message đăng ký (user enumeration) | `AuthService.java` | 🟠 HIGH | ✅ Đã sửa |
+| 037 | Lỗi 400 do dữ liệu trùng số điện thoại làm query trả về nhiều kết quả | `UserRepository.java`, `AuthService.java`, `GlobalExceptionHandler.java` | 🟠 HIGH | ✅ Đã sửa |
+
+### BUG-033 — `/verify-otp` chưa được áp dụng rate limit
+
+**Mô tả:** Bộ chặn request trước đây chỉ áp dụng cho `/login`, `/register`, `/verify-email`, chưa có `/verify-otp`.
+
+**Sửa:**
+- Thêm path `/api/users/verify-otp` vào interceptor registration.
+- Tăng cứng bảo mật OTP: limit theo **email** (`otp-email:<email>`) với ngưỡng 5 lần / 10 phút.
+
+> ✅ **Đã sửa (06/04/2026):** `WebConfig.java`, `RateLimitInterceptor.java`.
+
+### BUG-034 — IP rate limit qua gateway chưa phản ánh client thật
+
+**Mô tả:** Rate limiter đang dựa chủ yếu vào IP. Trong mô hình đi qua API Gateway nội bộ, có thể không luôn nhận được IP client thực theo cách mong muốn, làm giảm hiệu quả chống brute-force.
+
+**Tác động:** Độ chính xác của giới hạn theo IP không ổn định theo môi trường triển khai.
+
+**Khuyến nghị:**
+- Chuẩn hóa forwarding client IP tại gateway (header `X-Forwarded-For`/`Forwarded`).
+- Tại service, parse header trusted-proxy đúng chuẩn và fallback an toàn.
+
+**Sửa:**
+- `api-gateway/application.yml`: bật `spring.cloud.gateway.x-forwarded.*` để forward đầy đủ header client/proto/host/port.
+- `RateLimitInterceptor.resolveClientIp()`: parse lần lượt `X-Forwarded-For` → `Forwarded` (RFC 7239) → `X-Real-IP` → `remoteAddr`.
+
+> ✅ **Đã sửa (06/04/2026):** `api-gateway/application.yml`, `RateLimitInterceptor.java`.
+
+### BUG-035 — Phone-only registration không xác thực chủ sở hữu
+
+**Mô tả:** Luồng cũ cho phép đăng ký chỉ bằng số điện thoại mà không có OTP SMS/voice verification.
+
+**Sửa:**
+- Bắt buộc self-register phải dùng email để nhận OTP.
+- Trả thông báo rõ: OTP chỉ gửi qua email, không gửi qua số điện thoại.
+
+> ✅ **Đã sửa (06/04/2026):** `AuthService.register()`.
+
+### BUG-036 — User enumeration qua thông báo lỗi chi tiết
+
+**Mô tả:** Một số message hiện tại (ví dụ email đã đăng ký và xác thực) có thể giúp suy luận trạng thái tồn tại tài khoản.
+
+**Khuyến nghị:**
+- Chuẩn hóa phản hồi generic cho flow đăng ký: "Nếu thông tin hợp lệ, hệ thống đã gửi OTP".
+- Ghi chi tiết vào server log nội bộ thay vì trả chi tiết cho client.
+
+**Sửa:**
+- `AuthService.register()`: với các case có thể lộ thông tin tồn tại account (email đã verify, phone đã dùng), chuyển sang log nội bộ và trả flow generic.
+- `AuthController.register()`: trả message generic: "Nếu thông tin hợp lệ, hệ thống đã gửi OTP tới email...".
+
+> ✅ **Đã sửa (06/04/2026):** `AuthService.java`, `AuthController.java`.
+
+### BUG-037 — Register/Login lỗi 400 khi số điện thoại bị trùng dữ liệu cũ
+
+**Mô tả:** Một số môi trường DB đã có dữ liệu cũ trùng `phone_number`, khiến các query dạng `Optional<User> findByPhoneNumber(...)` ném lỗi `Query did not return a unique result: 2` và trả 400.
+
+**Sửa:**
+- `UserRepository`: thêm query an toàn cho dữ liệu trùng (`findAllByPhoneNumber`, `findFirstByPhoneNumberOrderByIdAsc`).
+- `AuthService`: đổi logic lookup phone sang `List<User>`, xử lý rõ trường hợp trùng thay vì để exception SQL rò ra ngoài.
+- `GlobalExceptionHandler`: bắt `IncorrectResultSizeDataAccessException` và trả message thân thiện.
+
+> ✅ **Đã sửa (06/04/2026):** `UserRepository.java`, `AuthService.java`, `GlobalExceptionHandler.java`.
+
+### Tổng sau scan bổ sung
+
+| Mức | Tổng | Đã sửa | Còn lại |
+|-----|------|--------|--------|
+| CRITICAL | 8 | 8 | 0 |
+| HIGH | 12 | 12 | 0 |
+| MEDIUM | 12 | 12 | 0 |
+| LOW | 5 | 5 | 0 |
+| **Tổng** | **37** | **37** | **0** |

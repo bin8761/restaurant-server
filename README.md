@@ -6,6 +6,8 @@ Hệ thống quản lý nhà hàng đầy đủ chức năng — microservices S
 
 ## Mục lục
 
+Tài liệu chuyên sâu cho module bàn và đặt bàn: [TABLE_RESERVATION_README.md](TABLE_RESERVATION_README.md)
+
 1. [Tổng quan](#1-tổng-quan)
 2. [Kiến trúc hệ thống](#2-kiến-trúc-hệ-thống)
 3. [Yêu cầu & Khởi động](#3-yêu-cầu--khởi-động)
@@ -47,6 +49,10 @@ Hệ thống quản lý nhà hàng đầy đủ chức năng — microservices S
 | **WAITER** | Fe-Admin `:3010` | Theo dõi orders, xem bàn |
 | **CUSTOMER** | Web `:3011` | Đăng ký, đặt bàn trước, xem menu |
 | **Khách tại bàn** | `/:3011` (scan QR) | Gọi món, yêu cầu thanh toán |
+
+### Tài liệu chuyên sâu theo module
+
+- Module bàn, đặt bàn, lịch sử đặt bàn, QR bàn: [TABLE_RESERVATION_README.md](TABLE_RESERVATION_README.md)
 
 ---
 

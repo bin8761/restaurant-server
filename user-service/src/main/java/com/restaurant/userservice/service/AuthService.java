@@ -3,30 +3,40 @@ package com.restaurant.userservice.service;
 import com.restaurant.userservice.dto.AuthResponse;
 import com.restaurant.userservice.dto.LoginRequest;
 import com.restaurant.userservice.dto.RegisterRequest;
+import com.restaurant.userservice.entity.EmailVerificationOtpLog;
 import com.restaurant.userservice.entity.Role;
 import com.restaurant.userservice.entity.User;
+import com.restaurant.userservice.repository.EmailVerificationOtpLogRepository;
 import com.restaurant.userservice.repository.RoleRepository;
 import com.restaurant.userservice.repository.UserRepository;
 import com.restaurant.userservice.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private static final String CUSTOMER_ROLE_NAME = "CUSTOMER";
+    private static final String GENERIC_REGISTER_LOG =
+            "Register request suppressed to avoid enumeration: identifier={} phone={} reason={}";
+    private static final String GENERIC_REGISTER_REJECT_MESSAGE =
+        "Không thể gửi OTP với thông tin đã nhập. Vui lòng kiểm tra lại email hoặc số điện thoại.";
     private static final Pattern EMAIL_REGEX =
             Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final UserRepository userRepository;
+    private final EmailVerificationOtpLogRepository otpLogRepository;
     private final RoleRepository roleRepository;
     private final JwtUtil jwtUtil;
     private final UserService userService;
@@ -45,9 +55,9 @@ public class AuthService {
 
         User user = optionalUser.get();
 
-        // Nếu là CUSTOMER, bắt buộc phải xác thực email
+        // Nếu là CUSTOMER, bắt buộc phải xác thực email bằng OTP
         if (CUSTOMER_ROLE_NAME.equals(user.getRole().getName()) && !user.isEmailVerified()) {
-            throw new RuntimeException("Email chưa được xác thực. Vui lòng kiểm tra hộp thư và bấm link xác thực.");
+            throw new RuntimeException("Email chưa được xác thực. Vui lòng nhập mã OTP đã gửi về email.");
         }
 
         if (!verifyPassword(request.getPassword(), user)) {
@@ -63,21 +73,55 @@ public class AuthService {
     // -------------------------------------------------------
     @Transactional
     public void register(RegisterRequest request) {
+        log.info("Register request: identifier={}, fullName={}", request.getIdentifier(), request.getFullName());
+        
         String identifier = request.getIdentifier().trim();
         boolean isEmail = EMAIL_REGEX.matcher(identifier).matches();
+        String phoneNumber = request.getPhoneNumber() == null ? "" : request.getPhoneNumber().trim().replaceAll("[^0-9]", "");
+        log.debug("Identifier is email: {}", isEmail);
+
+        if (!isEmail) {
+            throw new RuntimeException("Vui lòng dùng email để đăng ký. OTP chỉ gửi qua email, không gửi qua số điện thoại.");
+        }
 
         if (isEmail) {
-            if (userRepository.existsByEmail(identifier)) {
-                throw new RuntimeException("Email này đã được đăng ký");
+            if (phoneNumber.isBlank()) {
+                throw new RuntimeException("Vui lòng nhập số điện thoại");
             }
-        } else {
-            // Chuẩn hoá: chỉ giữ chữ số
-            identifier = identifier.replaceAll("[^0-9]", "");
-            if (identifier.length() < 9 || identifier.length() > 11) {
-                throw new RuntimeException("Số điện thoại không hợp lệ (9–11 chữ số)");
+            if (phoneNumber.length() < 9 || phoneNumber.length() > 11) {
+                throw new RuntimeException("Số điện thoại không hợp lệ (9-11 chữ số)");
             }
-            if (userRepository.existsByPhoneNumber(identifier)) {
-                throw new RuntimeException("Số điện thoại này đã được đăng ký");
+            List<User> existingByPhone = userRepository.findAllByPhoneNumber(phoneNumber);
+
+            // Nếu email đã tồn tại nhưng CHƯA xác thực → gửi lại OTP (không báo lỗi)
+            Optional<User> existingOpt = userRepository.findByEmail(identifier);
+            if (existingOpt.isPresent()) {
+                User existing = existingOpt.get();
+                boolean phoneUsedByAnotherAccount = existingByPhone.stream()
+                        .anyMatch(u -> !u.getId().equals(existing.getId()));
+                if (phoneUsedByAnotherAccount) {
+                    log.info(GENERIC_REGISTER_LOG, identifier, phoneNumber, "phone_conflict_with_other_account");
+                    throw new RuntimeException(GENERIC_REGISTER_REJECT_MESSAGE);
+                }
+                if (existing.isEmailVerified()) {
+                    log.info(GENERIC_REGISTER_LOG, identifier, phoneNumber, "email_already_verified");
+                    throw new RuntimeException(GENERIC_REGISTER_REJECT_MESSAGE);
+                }
+                // Cập nhật password + tên mới + OTP mới rồi gửi lại
+                existing.setPassword(BCrypt.hashpw(request.getPassword(), BCrypt.gensalt(10)));
+                existing.setFullName(request.getFullName().trim());
+                existing.setPhoneNumber(phoneNumber);
+                String newOtp = generateOtp();
+                userRepository.save(existing);
+                createOtpLog(existing, identifier, newOtp);
+                log.info("Re-sent OTP for unverified email {}: {}", identifier, newOtp);
+                emailService.sendOtpEmail(identifier, request.getFullName().trim(), newOtp);
+                return;
+            }
+
+            if (!existingByPhone.isEmpty()) {
+                log.info(GENERIC_REGISTER_LOG, identifier, phoneNumber, "phone_already_registered");
+                throw new RuntimeException(GENERIC_REGISTER_REJECT_MESSAGE);
             }
         }
 
@@ -93,33 +137,22 @@ public class AuthService {
         user.setFullName(request.getFullName().trim());
         user.setEmailVerified(false);
 
-        if (isEmail) {
-            user.setEmail(identifier);
-        } else {
-            user.setPhoneNumber(identifier);
-            // Số điện thoại không có email → không thể xác thực qua email
-            // Đặt emailVerified = true ngay (xác thực qua SĐT là đủ)
-            user.setEmailVerified(true);
-        }
+        user.setEmail(identifier);
+        user.setPhoneNumber(phoneNumber);
 
-        // Tạo verification token cho đăng ký bằng email
-        String verificationToken = null;
-        if (isEmail) {
-            verificationToken = UUID.randomUUID().toString();
-            user.setEmailVerificationToken(verificationToken);
-            user.setEmailVerificationExpiresAt(LocalDateTime.now().plusHours(24));
-        }
+        // Tạo OTP 6 chữ số cho đăng ký bằng email
+        String otp = generateOtp();
+        log.info("Generated OTP for {}: {}", identifier, otp);
 
         userRepository.save(user);
+        createOtpLog(user, identifier, otp);
 
-        // Gửi email xác thực
-        if (isEmail) {
-            emailService.sendVerificationEmail(identifier, request.getFullName().trim(), verificationToken);
-        }
+        // Gửi email xác thực OTP
+        emailService.sendOtpEmail(identifier, request.getFullName().trim(), otp);
     }
 
     // -------------------------------------------------------
-    // Xác thực email qua token
+    // Xác thực email qua token (legacy —  giữ lại cho backward compatibility)
     // -------------------------------------------------------
     @Transactional
     public void verifyEmail(String token) {
@@ -137,6 +170,75 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    /**
+     * Xác thực email qua OTP 6 chữ số.
+     * @param email Email người dùng  
+     * @param otp OTP 6 chữ số từ email
+     */
+    @Transactional
+    public void verifyEmailOtp(String email, String otp) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại"));
+
+        EmailVerificationOtpLog otpLog = otpLogRepository
+                .findTopByEmailAndValidTrueAndUsedFalseOrderBySentAtDescIdDesc(email)
+                .orElseThrow(() -> new RuntimeException("OTP không hợp lệ"));
+
+        otpLog.setLastAttemptAt(LocalDateTime.now());
+
+        if (!otpLog.getOtpCode().equals(otp)) {
+            otpLog.setStatus("INVALID");
+            otpLog.setAttemptCount((otpLog.getAttemptCount() == null ? 0 : otpLog.getAttemptCount()) + 1);
+            if (otpLog.getAttemptCount() >= 5) {
+                otpLog.setValid(false);
+            }
+            otpLogRepository.save(otpLog);
+            throw new RuntimeException("OTP không hợp lệ");
+        }
+
+        if (otpLog.getExpiresAt().isBefore(LocalDateTime.now())) {
+            otpLog.setStatus("EXPIRED");
+            otpLog.setValid(false);
+            otpLogRepository.save(otpLog);
+            throw new RuntimeException("OTP đã hết hạn (10 phút). Vui lòng đăng ký lại.");
+        }
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        otpLog.setStatus("VERIFIED");
+        otpLog.setUsed(true);
+        otpLog.setValid(false);
+        otpLog.setUsedAt(LocalDateTime.now());
+        otpLogRepository.save(otpLog);
+
+        log.info("Email verified via OTP for: {}", email);
+    }
+
+    private void createOtpLog(User user, String email, String otpCode) {
+        // Invalidate previous active OTPs for this email
+        List<EmailVerificationOtpLog> activeLogs = otpLogRepository.findAllByEmailAndValidTrueAndUsedFalse(email);
+        for (EmailVerificationOtpLog log : activeLogs) {
+            log.setStatus("SUPERSEDED");
+            log.setValid(false);
+        }
+        if (!activeLogs.isEmpty()) {
+            otpLogRepository.saveAll(activeLogs);
+        }
+
+        EmailVerificationOtpLog otpLog = new EmailVerificationOtpLog();
+        otpLog.setUser(user);
+        otpLog.setEmail(email);
+        otpLog.setOtpCode(otpCode);
+        otpLog.setStatus("PENDING");
+        otpLog.setValid(true);
+        otpLog.setUsed(false);
+        otpLog.setSentAt(LocalDateTime.now());
+        otpLog.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        otpLog.setAttemptCount(0);
+        otpLogRepository.save(otpLog);
+    }
+
     // -------------------------------------------------------
     // Helpers
     // -------------------------------------------------------
@@ -146,8 +248,13 @@ public class AuthService {
         }
         String digitsOnly = identifier.replaceAll("[^0-9]", "");
         if (!digitsOnly.isEmpty() && digitsOnly.equals(identifier.replaceAll("\\D", ""))) {
-            Optional<User> byPhone = userRepository.findByPhoneNumber(digitsOnly);
-            if (byPhone.isPresent()) return byPhone;
+            List<User> byPhone = userRepository.findAllByPhoneNumber(digitsOnly);
+            if (byPhone.size() > 1) {
+                throw new RuntimeException("Dữ liệu số điện thoại bị trùng. Vui lòng đăng nhập bằng email hoặc liên hệ quản trị viên.");
+            }
+            if (byPhone.size() == 1) {
+                return Optional.of(byPhone.get(0));
+            }
         }
         return userRepository.findByUsername(identifier);
     }
@@ -182,5 +289,9 @@ public class AuthService {
             candidate = base + "_" + suffix++;
         }
         return candidate;
+    }
+
+    private String generateOtp() {
+        return String.format("%06d", (int)(Math.random() * 1000000));
     }
 }

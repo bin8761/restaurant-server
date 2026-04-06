@@ -6,13 +6,20 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      x-forwarded:
+        enabled: true
+        for-enabled: true
+        host-enabled: true
+        port-enabled: true
+        proto-enabled: true
       globalcors:
         corsConfigurations:
           '[/**]':
             # BUG-029: Giới hạn CORS origin, không dùng wildcard *
             allowedOriginPatterns:
-              - "http://localhost:3010"
-              - "http://localhost:3011"
+              - "http://localhost:3001"  # Next.js dev server (fallback khi port 3000 bị chiếm)
+              - "http://localhost:3010"  # Fe-Admin (recommended port)
+              - "http://localhost:3011"  # Customer web + table-service
             allowCredentials: true
             allowedMethods:
             - GET

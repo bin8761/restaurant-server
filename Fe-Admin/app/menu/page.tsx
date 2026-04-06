@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/axios";
+import { getUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +97,7 @@ export default function MenuManagementPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterCategory, setFilterCategory] = useState<string>("all");
+    const [isAdmin, setIsAdmin] = useState(false);
 
     // Dialog states
     const [isCreateFoodDialogOpen, setIsCreateFoodDialogOpen] = useState(false);
@@ -144,6 +146,10 @@ export default function MenuManagementPage() {
     }, []);
 
     useEffect(() => {
+        // Check if user is admin
+        const user = getUser();
+        setIsAdmin(user?.roleName === 'ADMIN');
+        
         fetchData();
     }, [fetchData]);
 
@@ -411,6 +417,7 @@ export default function MenuManagementPage() {
                             <Button variant="outline" size="icon" onClick={fetchData}>
                                 <RefreshCw className="h-4 w-4" />
                             </Button>
+                            {isAdmin && (
                             <Dialog open={isCreateFoodDialogOpen} onOpenChange={setIsCreateFoodDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button onClick={resetFoodForm}>
@@ -483,6 +490,7 @@ export default function MenuManagementPage() {
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
+                            )}
                         </div>
                     </div>
 
@@ -529,6 +537,7 @@ export default function MenuManagementPage() {
                                         )}
 
                                         {/* Overlay */}
+                                        {isAdmin && (
                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                             <Button
                                                 size="sm"
@@ -545,6 +554,7 @@ export default function MenuManagementPage() {
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
+                                        )}
                                     </div>
                                     <CardContent className="p-4 flex flex-col justify-between h-full">                                        <h3 className="font-semibold text-foreground line-clamp-2 min-h-[48px] mb-2">{food.name}</h3>
                                         <div className="flex items-center justify-between mt-auto">
@@ -569,6 +579,7 @@ export default function MenuManagementPage() {
                         <p className="text-sm text-muted-foreground">
                             Quản lý các danh mục món ăn trong nhà hàng
                         </p>
+                        {isAdmin && (
                         <Dialog open={isCreateCategoryDialogOpen} onOpenChange={setIsCreateCategoryDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button onClick={resetCategoryForm}>
@@ -602,6 +613,7 @@ export default function MenuManagementPage() {
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
+                        )}
                     </div>
 
                     {/* Categories Table */}
@@ -635,6 +647,7 @@ export default function MenuManagementPage() {
                                                     <Badge variant="outline">{foodCount} món</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
+                                                    {isAdmin && (
                                                     <div className="flex items-center justify-end gap-2">
                                                         <Button
                                                             variant="ghost"
@@ -651,6 +664,7 @@ export default function MenuManagementPage() {
                                                             <Trash2 className="h-4 w-4 text-destructive" />
                                                         </Button>
                                                     </div>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         );

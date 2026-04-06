@@ -36,14 +36,15 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    // BUG-023: Rate limiting cho các endpoint đăng nhập / đăng ký / verify-email
+        // BUG-023: Rate limiting cho các endpoint đăng nhập / đăng ký / verify-email / verify-otp
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(
                         "/api/users/login",
                         "/api/users/register",
-                        "/api/users/verify-email"
+                "/api/users/verify-email",
+                "/api/users/verify-otp"
                 );
     }
 

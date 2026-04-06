@@ -147,6 +147,13 @@ public class TableService {
         return tableReservationRepository.findByCustomerIdOrderByStartTimeDesc(customerId);
     }
 
+    public List<com.restaurant.tableservice.entity.TableReservation> getAllReservations(String status) {
+        if (status == null || status.isBlank() || "all".equalsIgnoreCase(status)) {
+            return tableReservationRepository.findAllByOrderByStartTimeDesc();
+        }
+        return tableReservationRepository.findByStatusOrderByStartTimeDesc(status);
+    }
+
     /**
      * Trả về reservation pending/confirmed tiếp theo của bàn (nếu có).
      * Dùng để admin FE biết bàn sắp có khách đặt.

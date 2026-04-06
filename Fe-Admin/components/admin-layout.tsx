@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
     LayoutDashboard,
     UtensilsCrossed,
+    CalendarCheck,
     ClipboardList,
     Users,
     CreditCard,
@@ -45,6 +46,11 @@ const menuItems = [
         title: "Quản lý bàn",
         url: "/tables",
         icon: UtensilsCrossed,
+    },
+    {
+        title: "Đơn đặt bàn",
+        url: "/reservations",
+        icon: CalendarCheck,
     },
     {
         title: "Quản lý món ăn",

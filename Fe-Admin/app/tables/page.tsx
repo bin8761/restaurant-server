@@ -52,7 +52,9 @@ interface UpcomingReservation {
   startTime: string;
   endTime: string;
   customerName: string;
+  customerPhone?: string;
   partySize: number;
+  notes?: string;
   status: string;
 }
 
@@ -82,6 +84,8 @@ export default function TableManagementPage() {
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [enrichments, setEnrichments] = useState<Map<string, TableEnrichment>>(new Map());
   const [tick, setTick] = useState(0); // cập nhật mỗi giây cho countdown
+  const [expandedUpcomingTableId, setExpandedUpcomingTableId] = useState<string | null>(null);
+  const [showDialogUpcomingDetail, setShowDialogUpcomingDetail] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -135,12 +139,28 @@ export default function TableManagementPage() {
             ? api.get(`/tables/${table.id}/active-key`).catch(() => null)
             : Promise.resolve(null),
         ]);
+        const rawUpcoming =
+          upcomingRes.status === 'fulfilled' && upcomingRes.value?.data
+            ? upcomingRes.value.data
+            : undefined;
+
+        const normalizeUpcoming = (raw: any): UpcomingReservation | undefined => {
+          if (!raw) return undefined;
+          return {
+            id: raw.id,
+            startTime: raw.startTime || raw.start_time,
+            endTime: raw.endTime || raw.end_time,
+            customerName: raw.customerName || raw.customer_name || 'Khách đặt bàn',
+            customerPhone: raw.customerPhone || raw.customer_phone || '',
+            partySize: raw.partySize || raw.party_size || 0,
+            notes: raw.notes || '',
+            status: raw.status || 'pending',
+          };
+        };
+
         return {
           tableId: table.id,
-          upcoming:
-            upcomingRes.status === 'fulfilled' && upcomingRes.value?.data
-              ? (upcomingRes.value.data as UpcomingReservation)
-              : undefined,
+          upcoming: normalizeUpcoming(rawUpcoming),
           activeKey:
             activeKeyRes.status === 'fulfilled' && activeKeyRes.value?.data
               ? ({
@@ -279,6 +299,7 @@ export default function TableManagementPage() {
 
   const openDetailDialog = (table: Table) => {
     setSelectedTable(table);
+    setShowDialogUpcomingDetail(false);
     setFormData({
       name: table.name,
       status: table.status as any,
@@ -335,6 +356,22 @@ export default function TableManagementPage() {
     tomorrow.setDate(today.getDate() + 1);
     if (d.toDateString() === tomorrow.toDateString()) return 'Ngày mai';
     return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+  };
+
+  const isValidDateString = (dateStr?: string): boolean => {
+    if (!dateStr) return false;
+    return !Number.isNaN(new Date(dateStr).getTime());
+  };
+
+  const minutesUntil = (dateStr: string): number => {
+    void tick;
+    return Math.floor((new Date(dateStr).getTime() - Date.now()) / 60000);
+  };
+
+  const shouldShowUpcoming = (upcoming?: UpcomingReservation): boolean => {
+    if (!upcoming || !isValidDateString(upcoming.startTime)) return false;
+    const mins = minutesUntil(upcoming.startTime);
+    return mins >= 0 && mins <= 30;
   };
 
   const filteredTables = tables.filter((table) =>
@@ -494,17 +531,49 @@ export default function TableManagementPage() {
                 )}
 
                 {/* Reservation sắp tới */}
-                {enrich?.upcoming && (
-                  <div className="flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded-md px-2 py-1.5">
-                    <span className="text-xs mt-0.5">📅</span>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-blue-700">
-                        {formatDate(enrich.upcoming.startTime)} {formatTime(enrich.upcoming.startTime)}
-                      </span>
-                      <span className="text-[10px] text-blue-600 truncate max-w-[140px]">
-                        {enrich.upcoming.customerName} · {enrich.upcoming.partySize} khách
-                      </span>
+                {shouldShowUpcoming(enrich?.upcoming) && enrich?.upcoming && (
+                  <div
+                    className="flex flex-col gap-2 bg-blue-50 border border-blue-200 rounded-md px-2 py-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-xs mt-0.5">📅</span>
+                      <div className="flex flex-col flex-1">
+                        <span className="text-xs font-semibold text-blue-700">
+                          {formatDate(enrich.upcoming.startTime)} {formatTime(enrich.upcoming.startTime)}
+                        </span>
+                        <span className="text-[10px] text-blue-600">
+                          Còn {Math.max(0, minutesUntil(enrich.upcoming.startTime))} phút · {enrich.upcoming.partySize} khách
+                        </span>
+                      </div>
                     </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] bg-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedUpcomingTableId((prev) =>
+                          prev === table.id ? null : table.id
+                        );
+                      }}
+                    >
+                      {expandedUpcomingTableId === table.id ? 'Ẩn chi tiết lịch' : 'Xem chi tiết lịch'}
+                    </Button>
+
+                    {expandedUpcomingTableId === table.id && (
+                      <div className="rounded-md border border-blue-200 bg-white p-2 text-[11px] text-blue-900 space-y-1">
+                        <p><span className="font-medium">Khách:</span> {enrich.upcoming.customerName}</p>
+                        {!!enrich.upcoming.customerPhone && (
+                          <p><span className="font-medium">SĐT:</span> {enrich.upcoming.customerPhone}</p>
+                        )}
+                        <p><span className="font-medium">Thời gian:</span> {formatDate(enrich.upcoming.startTime)} {formatTime(enrich.upcoming.startTime)} - {formatTime(enrich.upcoming.endTime)}</p>
+                        {!!enrich.upcoming.notes && (
+                          <p><span className="font-medium">Ghi chú:</span> {enrich.upcoming.notes}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -572,6 +641,56 @@ export default function TableManagementPage() {
                     setFormData({ ...formData, isBuffet: checked })
                   }
                 />
+              </div>
+
+              {/* Chi tiết lịch đặt sắp tới trong dialog (không phụ thuộc rule 30p trên card) */}
+              <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-900">Lịch đặt sắp tới</p>
+                  {(() => {
+                    const upcoming = enrichments.get(selectedTable.id)?.upcoming;
+                    if (!upcoming || !isValidDateString(upcoming.startTime)) return null;
+                    return (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 bg-white"
+                        onClick={() => setShowDialogUpcomingDetail((v) => !v)}
+                      >
+                        {showDialogUpcomingDetail ? 'Ẩn chi tiết lịch' : 'Xem chi tiết lịch'}
+                      </Button>
+                    );
+                  })()}
+                </div>
+
+                {(() => {
+                  const upcoming = enrichments.get(selectedTable.id)?.upcoming;
+                  if (!upcoming || !isValidDateString(upcoming.startTime)) {
+                    return <p className="text-xs text-blue-700">Chưa có lịch đặt sắp tới cho bàn này.</p>;
+                  }
+
+                  return (
+                    <>
+                      <p className="text-xs text-blue-800">
+                        {formatDate(upcoming.startTime)} {formatTime(upcoming.startTime)} - {formatTime(upcoming.endTime)}
+                      </p>
+                      {showDialogUpcomingDetail && (
+                        <div className="rounded-md border border-blue-200 bg-white p-2 text-xs text-blue-900 space-y-1">
+                          <p><span className="font-medium">Khách:</span> {upcoming.customerName}</p>
+                          {!!upcoming.customerPhone && (
+                            <p><span className="font-medium">SĐT:</span> {upcoming.customerPhone}</p>
+                          )}
+                          <p><span className="font-medium">Số khách:</span> {upcoming.partySize}</p>
+                          <p><span className="font-medium">Trạng thái:</span> {upcoming.status}</p>
+                          {!!upcoming.notes && (
+                            <p><span className="font-medium">Ghi chú:</span> {upcoming.notes}</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

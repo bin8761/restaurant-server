@@ -49,11 +49,15 @@ public class TableController {
         Object roleIdAttr = request.getAttribute("roleId");
         if (userIdAttr != null) {
             Integer roleId = roleIdAttr != null ? ((Number) roleIdAttr).intValue() : 0;
-            if (roleId == 5) {
-                // BUG-020: CUSTOMER — override bằng userId từ JWT, không tin payload
+            // Không phụ thuộc cứng roleId == 5 vì dữ liệu roles có thể khác id giữa các môi trường.
+            // Nếu request đã đăng nhập nhưng không truyền customer_id, mặc định gán theo user JWT.
+            // Admin/staff vẫn có thể truyền customer_id cụ thể để đặt hộ khách.
+            if (!payload.containsKey("customer_id") || payload.get("customer_id") == null) {
+                payload.put("customer_id", ((Number) userIdAttr).intValue());
+            } else if (roleId == 5) {
+                // BUG-020: CUSTOMER không được mạo danh customer_id khác
                 payload.put("customer_id", ((Number) userIdAttr).intValue());
             }
-            // Admin (roleId != 5) có thể đặt customer_id hợp lệ — giữ nguyên
         } else {
             // BUG-020: Unauthenticated — xóa customer_id để ngăn injection giả mạo
             payload.remove("customer_id");
@@ -70,6 +74,18 @@ public class TableController {
         }
         Integer customerId = ((Number) userIdAttr).intValue();
         return ResponseEntity.ok(tableService.getMyReservations(customerId));
+    }
+
+    @GetMapping("/reservations")
+    public ResponseEntity<List<com.restaurant.tableservice.entity.TableReservation>> getAllReservations(
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(tableService.getAllReservations(status));
+    }
+
+    @GetMapping("/admin/reservations")
+    public ResponseEntity<List<com.restaurant.tableservice.entity.TableReservation>> getAllReservationsForAdmin(
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(tableService.getAllReservations(status));
     }
 
     /**

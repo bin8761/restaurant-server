@@ -260,6 +260,7 @@ const DashboardSkeleton = () => (
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [kpis, setKpis] = useState<KPIData>({
     totalRevenue: 0,
     todayOrders: 0,
@@ -279,18 +280,42 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       setError(null);
+      setWarning(null);
 
-      const [ordersRes, foodsRes, tablesRes, paymentsRes] = await Promise.all([
+      const [ordersResult, foodsResult, tablesResult, paymentsResult] = await Promise.allSettled([
         api.get("/orders"),
         api.get("/menu/foods"),
         api.get("/tables"),
         api.get("/payments/history"),
       ]);
 
-      const orders: Order[] = ordersRes.data || [];
-      const foods: Food[] = foodsRes.data || [];
-      const tables: TableData[] = tablesRes.data || [];
-      const payments: Payment[] = paymentsRes.data || [];
+      const failedSources: string[] = [];
+
+      const extractData = <T,>(
+        result: PromiseSettledResult<{ data: T }>,
+        fallback: T,
+        sourceLabel: string
+      ): T => {
+        if (result.status === "fulfilled") {
+          return result.value.data ?? fallback;
+        }
+        const reason = result.reason as { message?: string } | undefined;
+        failedSources.push(`${sourceLabel}: ${reason?.message || "Lỗi mạng"}`);
+        return fallback;
+      };
+
+      const orders = extractData<Order[]>(ordersResult, [], "Orders");
+      const foods = extractData<Food[]>(foodsResult, [], "Menu foods");
+      const tables = extractData<TableData[]>(tablesResult, [], "Tables");
+      const payments = extractData<Payment[]>(paymentsResult, [], "Payments");
+
+      if (failedSources.length === 4) {
+        setError("Không thể tải dữ liệu dashboard (lỗi mạng). Vui lòng kiểm tra API Gateway và các service backend.");
+        return;
+      }
+      if (failedSources.length > 0) {
+        setWarning(`Một số dữ liệu đang tạm thời không tải được: ${failedSources.join(" | ")}`);
+      }
 
       const enrichedOrders = orders.map(o => ({
         ...o,
@@ -336,6 +361,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
+      {warning && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {warning}
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

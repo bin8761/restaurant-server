@@ -80,6 +80,20 @@ interface User {
     updated_at: string;
 }
 
+const normalizeUser = (raw: any): User => ({
+    id: raw.id,
+    username: raw.username || "",
+    role_id: raw.role_id ?? raw.roleId ?? 0,
+    role_name: raw.role_name ?? raw.roleName ?? "UNKNOWN",
+    full_name: raw.full_name ?? raw.fullName ?? "",
+    phone_number: raw.phone_number ?? raw.phoneNumber ?? "",
+    age: raw.age ?? 0,
+    email: raw.email ?? "",
+    address: raw.address ?? "",
+    created_at: raw.created_at ?? raw.createdAt ?? "",
+    updated_at: raw.updated_at ?? raw.updatedAt ?? "",
+});
+
 // Helper functions
 const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString("vi-VN", {
@@ -101,6 +115,7 @@ const getRoleBadgeColor = (roleName: string): string => {
 };
 
 const getInitials = (name: string): string => {
+    if (!name) return "NA";
     return name
         .split(" ")
         .map((n) => n[0])
@@ -153,7 +168,10 @@ export default function StaffManagementPage() {
                 { id: 2, name: "STAFF" }
             ];
 
-            setUsers(usersRes.data || []);
+            const normalizedUsers: User[] = Array.isArray(usersRes.data)
+                ? usersRes.data.map(normalizeUser)
+                : [];
+            setUsers(normalizedUsers);
             setRoles(rolesData);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Không thể tải dữ liệu";
@@ -170,10 +188,14 @@ export default function StaffManagementPage() {
 
     // Filter users
     const filteredUsers = users.filter((user) => {
+        const q = searchQuery.toLowerCase();
+        const fullName = (user.full_name || "").toLowerCase();
+        const username = (user.username || "").toLowerCase();
+        const email = (user.email || "").toLowerCase();
         const matchesSearch =
-            user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase());
+            fullName.includes(q) ||
+            username.includes(q) ||
+            email.includes(q);
         const matchesRole = filterRole === "all" || user.role_id === parseInt(filterRole);
         return matchesSearch && matchesRole;
     });
@@ -309,8 +331,8 @@ export default function StaffManagementPage() {
     // Stats
     const stats = {
         total: users.length,
-        admins: users.filter((u) => u.role_name.toUpperCase() === "ADMIN").length,
-        staff: users.filter((u) => u.role_name.toUpperCase() === "STAFF").length,
+        admins: users.filter((u) => (u.role_name || "").toUpperCase() === "ADMIN").length,
+        staff: users.filter((u) => (u.role_name || "").toUpperCase() === "STAFF").length,
     };
 
     // Loading state

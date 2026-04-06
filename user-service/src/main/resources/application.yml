@@ -2,8 +2,6 @@ server:
   port: 3005
 
 spring:
-  jackson:
-    property-naming-strategy: SNAKE_CASE
   application:
     name: user-service
   datasource:

@@ -20,7 +20,15 @@
         <a href="/register/" class="text-orange-600 hover:underline">Đăng ký</a>
       </p>
 
-      <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+      <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+        <div id="error-text"></div>
+        <a id="otp-link" href="/verify-otp/" class="hidden mt-2 inline-block font-medium text-orange-600 hover:underline">
+          → Nhập OTP email để xác thực
+        </a>
+        <p id="otp-note" class="hidden mt-1 text-xs text-gray-600">
+          OTP chỉ được gửi qua email, không gửi qua số điện thoại.
+        </p>
+      </div>
 
       <form id="login-form" class="space-y-4">
         <div>
@@ -72,7 +80,19 @@
         const params = new URLSearchParams(window.location.search);
         window.location.href = params.get('redirect') || '/booking/';
       } catch (err) {
-        errorBox.textContent = err.message;
+        const msg = err.message || 'Đăng nhập thất bại';
+        document.getElementById('error-text').textContent = msg;
+        const otpLink = document.getElementById('otp-link');
+        const otpNote = document.getElementById('otp-note');
+        if (msg.includes('chưa được xác thực') || msg.includes('xác thực email') || msg.includes('OTP')) {
+          const email = document.getElementById('identifier').value.trim();
+          otpLink.href = '/verify-otp/' + (email.includes('@') ? '?email=' + encodeURIComponent(email) : '');
+          otpLink.classList.remove('hidden');
+          otpNote.classList.remove('hidden');
+        } else {
+          otpLink.classList.add('hidden');
+          otpNote.classList.add('hidden');
+        }
         errorBox.classList.remove('hidden');
         btn.disabled = false;
         btn.textContent = 'Đăng nhập';

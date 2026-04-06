@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Xác thực email – Nhà hàng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/navbar.js"></script>
+  <style>
+    @media (max-width: 640px) {
+      input { font-size: 16px !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="navbar"></div>
+
+  <div class="min-h-[calc(100vh-56px)] flex items-center justify-center px-3 sm:px-4 py-8">
+    <div class="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 w-full max-w-sm">
+
+      <!-- Icon -->
+      <div class="text-5xl sm:text-6xl text-center mb-4">📧</div>
+      <h1 class="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-1">Xác thực email</h1>
+      <p id="subtitle" class="text-sm sm:text-base text-gray-500 text-center mb-6">
+        Nhập mã OTP 6 chữ số đã được gửi đến email của bạn.
+      </p>
+
+      <!-- Error Box -->
+      <div id="error-box" class="hidden bg-red-50 border-l-4 border-red-500 text-red-800 rounded-lg px-4 py-3 mb-5 text-sm">
+        <div class="font-medium mb-1">Lỗi</div>
+        <div id="error-text"></div>
+      </div>
+
+      <!-- Success Box -->
+      <div id="success-box" class="hidden bg-green-50 border-l-4 border-green-500 text-green-800 rounded-lg px-4 py-3 mb-5 text-sm">
+        <div class="font-medium mb-1">Thành công!</div>
+        <div id="success-text"></div>
+      </div>
+
+      <!-- Form -->
+      <form id="otp-form">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+          <input id="email" type="email" readonly
+            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600 cursor-not-allowed" />
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">
+            Mã OTP <span class="text-red-500">*</span>
+          </label>
+          <input id="otp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+            placeholder="000000" autocomplete="one-time-code"
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+          <p class="text-xs text-gray-400 mt-1.5">Mã có hiệu lực trong 10 phút kể từ khi đăng ký.</p>
+        </div>
+
+        <button type="submit" id="btn-submit"
+          class="w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-semibold py-3 rounded-lg transition-colors duration-200 text-base disabled:opacity-50 disabled:cursor-not-allowed">
+          Xác thực
+        </button>
+      </form>
+
+      <p class="text-center text-xs sm:text-sm text-gray-500 mt-5">
+        Không nhận được mã?
+        <a href="/register/" class="text-orange-600 hover:underline font-medium">Đăng ký lại</a>
+      </p>
+
+    </div>
+  </div>
+
+  <script>
+    renderNavbar();
+
+    // Lấy email từ query string: /verify-otp/?email=xxx@gmail.com
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || '';
+
+    const emailInput = document.getElementById('email');
+    const otpInput   = document.getElementById('otp');
+    const subtitle   = document.getElementById('subtitle');
+
+    if (email) {
+      emailInput.value = email;
+      subtitle.textContent = `Nhập mã OTP 6 chữ số đã được gửi đến ${email}.`;
+    } else {
+      // Không có email trong URL → yêu cầu nhập tay
+      emailInput.readOnly = false;
+      emailInput.classList.remove('bg-gray-50', 'text-gray-600', 'cursor-not-allowed');
+      emailInput.classList.add('bg-white', 'text-gray-900');
+      emailInput.placeholder = 'email@gmail.com';
+    }
+
+    document.getElementById('otp-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btn       = document.getElementById('btn-submit');
+      const errorBox  = document.getElementById('error-box');
+      const errorText = document.getElementById('error-text');
+      const successBox  = document.getElementById('success-box');
+      const successText = document.getElementById('success-text');
+
+      errorBox.classList.add('hidden');
+      successBox.classList.add('hidden');
+
+      const emailVal = emailInput.value.trim();
+      const otpVal   = otpInput.value.trim();
+
+      if (!emailVal) {
+        errorText.textContent = 'Vui lòng nhập email.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+      if (!/^\d{6}$/.test(otpVal)) {
+        errorText.textContent = 'Mã OTP phải gồm đúng 6 chữ số.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Đang xác thực...';
+
+      try {
+        await apiFetch(`/api/users/verify-otp?email=${encodeURIComponent(emailVal)}&otp=${encodeURIComponent(otpVal)}`, {
+          method: 'POST',
+        });
+
+        successText.textContent = 'Email đã xác thực thành công! Đang chuyển đến trang đăng nhập...';
+        successBox.classList.remove('hidden');
+        document.getElementById('otp-form').classList.add('hidden');
+
+        setTimeout(() => {
+          window.location.href = '/login/';
+        }, 1800);
+      } catch (err) {
+        errorText.textContent = err.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.';
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Xác thực';
+      }
+    });
+
+    // Auto-format: chỉ nhận số
+    otpInput.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+  </script>
+</body>
+</html>

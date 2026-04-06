@@ -67,7 +67,11 @@ async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Lỗi ' + res.status);
+    // Prefer explicit message; fall back to joining all field-level validation errors
+    const msg = data.message
+      || Object.values(data).filter(v => typeof v === 'string').join(' | ')
+      || ('Lỗi ' + res.status);
+    throw new Error(msg);
   }
 
   const text = await res.text();

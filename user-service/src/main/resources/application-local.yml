@@ -4,17 +4,26 @@ spring:
     username: root
     password: ""
   # -------------------------------------------------------
-  # Cấu hình mail cho local dev
-  # Dùng Mailtrap: https://mailtrap.io (free, catch-all)
-  # Tạo inbox -> lấy host/port/username/password điền vào đây
-  # Nếu để trống, hệ thống sẽ in token ra console thay vì gửi email
+  # Cấu hình mail cho local dev — Gmail SMTP + App Password
+  # Tạo App Password: https://myaccount.google.com/apppasswords
   # -------------------------------------------------------
   mail:
-    host: sandbox.smtp.mailtrap.io
+    host: smtp.gmail.com
     port: 587
-    username: ""
-    password: ""
+    username: "huy211439@gmail.com"  # Thay bằng email Gmail của bạn
+    password: "fbikwnsabgfjgorq"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          from: "huy211439@gmail.com"
+          auth.mechanisms: LOGIN PLAIN
+          starttls:
+            enable: true
+            required: true
 
 app:
   base-url: http://localhost:3000
   frontend-url: http://localhost:3001
+  mail:
+    fail-on-error: false

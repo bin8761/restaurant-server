@@ -34,7 +34,11 @@ public class SpaResourceConfig implements WebMvcConfigurer {
                         if (exact.exists() && exact.isReadable()) {
                             return exact;
                         }
-                        Resource dirIndex = location.createRelative(resourcePath + "/index.html");
+                        // Normalize trailing slash before appending /index.html to avoid double-slash
+                        String base = resourcePath.endsWith("/")
+                                ? resourcePath.substring(0, resourcePath.length() - 1)
+                                : resourcePath;
+                        Resource dirIndex = location.createRelative(base + "/index.html");
                         if (dirIndex.exists() && dirIndex.isReadable()) {
                             return dirIndex;
                         }

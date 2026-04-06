@@ -34,15 +34,19 @@ public interface TableReservationRepository extends JpaRepository<TableReservati
 
     List<TableReservation> findByCustomerIdOrderByStartTimeDesc(Integer customerId);
 
+        List<TableReservation> findAllByOrderByStartTimeDesc();
+
+        List<TableReservation> findByStatusOrderByStartTimeDesc(String status);
+
     void deleteByTableId(Integer tableId);
 
     /**
-     * Tìm reservation confirmed/pending tiếp theo của một bàn sau thời điểm cho trước.
-     * Dùng để kiểm tra xung đột khi cấp table key.
+     * Tìm reservation confirmed tiếp theo của một bàn sau thời điểm cho trước.
+     * Chỉ hiển thị lịch khi đơn đã được xác nhận.
      */
     @Query(value = "SELECT * FROM table_reservations " +
             "WHERE table_id = :tableId " +
-            "AND status IN ('pending', 'confirmed') " +
+            "AND status = 'confirmed' " +
             "AND start_time > :from " +
             "ORDER BY start_time ASC LIMIT 1", nativeQuery = true)
     java.util.Optional<TableReservation> findNextUpcomingReservation(

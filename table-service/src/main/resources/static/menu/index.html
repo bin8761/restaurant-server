@@ -79,7 +79,7 @@
       renderGrid();
     }
 
-    apiFetch('/api/menu/items')
+    apiFetch('/api/menu/foods')
       .then(data => {
         document.getElementById('loading').classList.add('hidden');
         allItems = (Array.isArray(data) ? data : data?.items ?? []).filter(i => i.available !== false);

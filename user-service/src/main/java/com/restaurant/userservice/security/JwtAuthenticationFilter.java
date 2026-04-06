@@ -33,6 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path.equals("/api/users/login")
                 || path.equals("/api/users/register")
                 || path.startsWith("/api/users/verify-email")
+                || path.equals("/api/users/verify-otp")
                 || path.equals("/api/users/logout")) {
             filterChain.doFilter(request, response);
             return;
