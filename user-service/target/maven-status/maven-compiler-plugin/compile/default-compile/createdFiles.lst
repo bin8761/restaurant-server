@@ -1,0 +1,6 @@
+com\restaurant\userservice\dto\RegisterRequest.class
+com\restaurant\userservice\entity\RevokedToken.class
+com\restaurant\userservice\config\RateLimitInterceptor.class
+com\restaurant\userservice\service\EmailService.class
+com\restaurant\userservice\repository\RevokedTokenRepository.class
+com\restaurant\userservice\service\TokenBlacklistService.class

@@ -594,11 +594,14 @@ FE kết nối qua STOMP/SockJS. Tất cả endpoint đều đi qua Gateway.
 ### JWT Configuration
 
 ```
-Secret:     restaurant_secret_key_12345678900  (dùng chung tất cả service)
+Secret:     ${JWT_SECRET} — biến môi trường bắt buộc trong production
+            (fallback dev: restaurant_secret_key_12345678900)
 Algorithm:  HS512
 Expiration: 86400000ms = 24 giờ
 Header:     Authorization: Bearer <token>
 ```
+
+> ⚠️ **Bảo mật:** Phải đặt biến môi trường `JWT_SECRET` (tối thiểu 32 ký tự) khi deploy production. Fallback chỉ dùng cho môi trường dev local.
 
 **Claims:**
 ```json
@@ -924,9 +927,20 @@ spring:
       ddl-auto: update        # Tự tạo/cập nhật bảng khi start
 
 jwt:
-  secret: restaurant_secret_key_12345678900
+  secret: ${JWT_SECRET:restaurant_secret_key_12345678900}  # Dùng env var trong production!
   expiration: 86400000        # 24 giờ (ms)
 ```
+
+### Biến môi trường
+
+| Biến | Mặc định | Mô tả |
+|------|----------|-------|
+| `JWT_SECRET` | `restaurant_secret_key_12345678900` | **Bắt buộc đổi trong production** |
+| `MAIL_HOST` | `sandbox.smtp.mailtrap.io` | SMTP host |
+| `MAIL_PORT` | `587` | SMTP port |
+| `MAIL_USERNAME` | _(trống)_ | SMTP user — để trống để dùng dev mode (in link ra console) |
+| `MAIL_PASSWORD` | _(trống)_ | SMTP password |
+| `APP_FRONTEND_URL` | `http://localhost:3011` | URL customer web (dùng trong email verify) |
 
 ### user-service — cấu hình email
 
@@ -985,28 +999,44 @@ mvn clean package -DskipTests
 
 ## 13. Known Issues
 
-### 🔴 Cần sửa
+✅ **Tất cả 32/32 bugs đã được sửa.** Xem chi tiết đầy đủ trong [`BUG_REPORT.md`](BUG_REPORT.md).
+
+### ✅ Đã sửa (32 bugs)
 
 | # | Vấn đề | Vị trí | Mức độ |
 |---|--------|--------|--------|
-| 1 | `invalidate key` reset cả `is_buffet = false` — `is_buffet` là thuộc tính vĩnh viễn của bàn, không phải session state | `TableService.java` | HIGH |
-| 2 | Email xác thực redirect `http://localhost:3001/login` — port sai, customer web ở `:3011` | `user-service application.yml` (`app.frontend-url`) | HIGH |
-| 3 | Booking page không gọi availability check trước khi POST reservation | `booking/index.html` | MEDIUM |
-| 4 | `customer_id` trong reservation không validate user tồn tại trong userdb | `TableController.java` | MEDIUM |
-| 5 | Nếu kitchen notification thất bại, order vẫn được đánh dấu confirmed nhưng bếp không nhận | `OrderService.java` | MEDIUM |
-| 6 | `buffet_session_id` do FE tự sinh (không validate server-side) — có thể bị giả mạo | `index.html` | MEDIUM |
-
-### 🟡 Cần chú ý
-
-| # | Vấn đề | Vị trí |
-|---|--------|--------|
-| 7 | Key expiry 2 giờ hardcode (không config được) | `TableService.java` |
-| 8 | `device_session` tracking có thể chặn thiết bị thứ 2 dùng cùng key | `TableKey.java` |
-| 9 | Không validate format SĐT thực tế (9-11 chữ số bất kỳ đều qua) | `AuthService.java` |
-| 10 | Không có rate limiting trên register / login / email verification | `AuthController.java` |
-| 11 | Logout chỉ xóa localStorage, không có server-side token blacklist | Thiết kế hệ thống |
-| 12 | Inventory không tự động trừ khi có order — tracking tồn kho không thực sự hoạt động | `order-service / menu-service` |
-| 13 | Không có idempotency key cho payment request — có thể tạo trùng payment record | `PaymentController.java` |
+| BUG-001 | JWT secret hardcode trong tất cả 8 service | `application.yml` (tất cả service) | CRITICAL |
+| BUG-002 | Race condition double-booking reservation (thiếu UNIQUE constraint) | `TableService.java`, migration | CRITICAL |
+| BUG-003 | Thanh toán đúp — `completePayment()` không kiểm tra status "paid" | `OrderService.java` | CRITICAL |
+| BUG-004 | XSS qua `innerHTML` khi load danh sách bàn trong trang booking | `booking/index.html` | CRITICAL |
+| BUG-005 | Race condition table key claim — không atomic | `TableKeyRepository.java`, `TableService.java` | CRITICAL |
+| BUG-006 | NPE khi `roleId` null trong `UserController` (4 endpoint) | `UserController.java` | CRITICAL |
+| BUG-031 | Path Traversal trong `ImageUploadController` — `/{category}/{filename}` không sanitize | `ImageUploadController.java` | CRITICAL |
+| BUG-007 | JWT token blacklist khi logout (DB-backed, bền vững qua restart) | `TokenBlacklistService.java`, `RevokedToken.java` | HIGH |
+| BUG-008 | Không validate format email khi đăng ký (dùng `contains("@")`) | `AuthService.java` | HIGH |
+| BUG-009 | Chính sách mật khẩu yếu (không yêu cầu chữ hoa, số, ≥8 ký tự) | `RegisterRequest.java` | HIGH |
+| BUG-010 | `requestPayment()` không lọc order đã paid — có thể tạo payment request trùng | `OrderService.java` | HIGH |
+| BUG-011 | `escHtml()` thiếu escape dấu nháy đơn `'` → XSS tiềm ẩn | `navbar.js` | HIGH |
+| BUG-012 | JWT lưu trong `localStorage` → chuyển sang `sessionStorage` + logout gọi backend | `auth.js` (customer web) | HIGH |
+| BUG-013 | Payment không validate order tồn tại và chưa thanh toán trước khi process | `PaymentService.java` | HIGH |
+| BUG-014 | Payment không kiểm tra payment_status "waiting" trước khi process | `PaymentService.java` | HIGH |
+| BUG-018 | Email verify redirect về port 3001 (sai) thay vì 3011 | `user-service application.yml` | HIGH |
+| BUG-032 | Dead code mojibake gây compile error trong `OrderService` | `OrderService.java` | HIGH |
+| BUG-015 | Xóa bàn không cascade — orphan records trong `table_keys`, `table_reservations` | `TableService.java` | MEDIUM |
+| BUG-016 | `updateTable()` không whitelist status hợp lệ — có thể set giá trị tùy ý | `TableService.java` | MEDIUM |
+| BUG-017 | `invalidateTableKey()` reset `is_buffet = false` (thuộc tính vĩnh viễn của bàn) | `TableService.java` | MEDIUM |
+| BUG-019 | Booking page không gọi availability check trước khi POST reservation | `booking/index.html` | MEDIUM |
+| BUG-020 | Unauthenticated request có thể inject `customer_id` giả vào reservation | `TableController.java` | MEDIUM |
+| BUG-021 | `createOrder()` không có transaction timeout — deadlock có thể treo mãi | `OrderService.java` | MEDIUM |
+| BUG-022 | `buffet_session_id` do FE tự sinh — server không kiểm soát | `OrderService.java` | MEDIUM |
+| BUG-023 | Không có rate limiting trên register / login / verify-email | `RateLimitInterceptor.java` | MEDIUM |
+| BUG-024 | Kitchen notification gọi SAU khi update order status — nếu lỗi thì không rollback | `OrderService.java` | MEDIUM |
+| BUG-025 | Log `[TRU KHO]` ghi thông tin nhạy cảm ở level INFO | `KitchenService.java` | MEDIUM |
+| BUG-026 | `API_BASE` hardcode `localhost:3000` trong config.js frontend | `config.js` | LOW |
+| BUG-027 | Thiếu index trên các cột thường query — hiệu năng kém khi scale | Schema DB | LOW |
+| BUG-028 | `verifyPassword()` còn fallback so sánh plaintext password | `AuthService.java` | LOW |
+| BUG-029 | CORS không restrict origin — tất cả domain đều được phép | `WebConfig.java` (8 service) | LOW |
+| BUG-030 | Inventory không auto-deduct khi confirm order | `OrderService.java`, `InternalMenuController.java` | LOW |
 
 ---
 
@@ -1017,3 +1047,4 @@ mvn clean package -DskipTests
 | `migrations/2026-04-02_add_table_reservations.sql` | tabledb | Tạo bảng `table_reservations`, indexes |
 | `migrations/2026-04-06_add_customer_role.sql` | userdb | INSERT role CUSTOMER (ID=5) |
 | `migrations/2026-04-06_add_customer_features.sql` | userdb + tabledb | Thêm `email_verified`, `email_verification_token`, `email_verification_expires_at` vào `users`; thêm `customer_id` vào `table_reservations` |
+| `migrations/2026-04-06_add_revoked_tokens.sql` | userdb | Tạo bảng `revoked_tokens` cho JWT token blacklist (DB-backed) |

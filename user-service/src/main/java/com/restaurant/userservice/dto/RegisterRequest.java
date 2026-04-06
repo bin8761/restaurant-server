@@ -1,7 +1,7 @@
 package com.restaurant.userservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
@@ -15,7 +15,10 @@ public class RegisterRequest {
     private String identifier;
 
     @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 6, message = "Mật khẩu phải có ít nhất 6 ký tự")
+    @Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
+        message = "Mật khẩu tối thiểu 8 ký tự, gồm chữ thường, chữ hoa và số"
+    )
     private String password;
 
     @NotBlank(message = "Họ tên không được để trống")

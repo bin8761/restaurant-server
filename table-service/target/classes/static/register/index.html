@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng ký – Nhà hàng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/navbar.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="navbar"></div>
+
+  <div class="min-h-[calc(100vh-56px)] flex items-center justify-center px-4 py-10">
+
+    <!-- Form -->
+    <div id="form-card" class="bg-white rounded-2xl shadow-sm border p-8 w-full max-w-sm">
+      <h1 class="text-2xl font-bold text-gray-800 mb-1">Đăng ký tài khoản</h1>
+      <p class="text-gray-500 text-sm mb-6">
+        Đã có tài khoản?
+        <a href="/login/" class="text-orange-600 hover:underline">Đăng nhập</a>
+      </p>
+
+      <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+
+      <form id="register-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+          <input id="fullName" type="text" required placeholder="Nguyễn Văn A"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email hoặc số điện thoại</label>
+          <input id="identifier" type="text" required placeholder="email@gmail.com hoặc 0909123456"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <p class="text-xs text-gray-400 mt-1">Đăng ký bằng email sẽ cần xác thực qua hộp thư.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Mật khẩu <span class="text-gray-400">(ít nhất 6 ký tự)</span>
+          </label>
+          <input id="password" type="password" required autocomplete="new-password" placeholder="••••••"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+        <button type="submit" id="btn-submit"
+          class="w-full bg-orange-600 text-white font-semibold py-2.5 rounded-lg hover:bg-orange-700 disabled:opacity-60 transition">
+          Đăng ký
+        </button>
+      </form>
+    </div>
+
+    <!-- Success -->
+    <div id="success-card" class="hidden bg-white rounded-2xl shadow-sm border p-8 w-full max-w-sm text-center">
+      <div id="success-icon" class="text-5xl mb-4">✅</div>
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Đăng ký thành công!</h2>
+      <p id="success-msg" class="text-gray-500 text-sm mb-6"></p>
+      <a href="/login/" class="inline-block bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-orange-700 transition">
+        Đến trang đăng nhập
+      </a>
+    </div>
+
+  </div>
+
+  <script>
+    renderNavbar();
+
+    document.getElementById('register-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      const errorBox = document.getElementById('error-box');
+      const identifier = document.getElementById('identifier').value.trim();
+      const password = document.getElementById('password').value;
+
+      errorBox.classList.add('hidden');
+
+      if (password.length < 6) {
+        errorBox.textContent = 'Mật khẩu phải có ít nhất 6 ký tự';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Đang đăng ký...';
+
+      try {
+        await apiFetch('/api/users/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            identifier,
+            password,
+            fullName: document.getElementById('fullName').value.trim(),
+          }),
+        });
+
+        document.getElementById('form-card').classList.add('hidden');
+        const isEmail = identifier.includes('@');
+        document.getElementById('success-icon').textContent = isEmail ? '📧' : '✅';
+        document.getElementById('success-msg').textContent = isEmail
+          ? `Chúng tôi đã gửi email xác thực đến ${identifier}. Vui lòng kiểm tra hộp thư và bấm vào link để kích hoạt tài khoản.`
+          : 'Tài khoản đã được tạo thành công. Bạn có thể đăng nhập ngay.';
+        document.getElementById('success-card').classList.remove('hidden');
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Đăng ký';
+      }
+    });
+  </script>
+</body>
+</html>

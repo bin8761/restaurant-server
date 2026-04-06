@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xác thực email – Nhà hàng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/navbar.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="navbar"></div>
+
+  <div class="min-h-[calc(100vh-56px)] flex items-center justify-center px-4">
+    <div class="bg-white rounded-2xl shadow-sm border p-8 w-full max-w-sm text-center">
+      <div id="icon" class="text-5xl mb-4">⏳</div>
+      <h2 id="title" class="text-xl font-bold text-gray-800 mb-2">Đang xác thực...</h2>
+      <p id="msg" class="text-gray-500 text-sm mb-6"></p>
+      <a id="link" href="/login/" class="hidden inline-block bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-orange-700 transition">
+        Đến trang đăng nhập
+      </a>
+    </div>
+  </div>
+
+  <script>
+    renderNavbar();
+
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!token) {
+      document.getElementById('icon').textContent = '❌';
+      document.getElementById('title').textContent = 'Token không hợp lệ';
+      document.getElementById('msg').textContent = 'Đường dẫn xác thực không hợp lệ.';
+      document.getElementById('link').classList.remove('hidden');
+    } else {
+      apiFetch('/api/users/verify-email?token=' + encodeURIComponent(token))
+        .then(() => {
+          document.getElementById('icon').textContent = '✅';
+          document.getElementById('title').textContent = 'Xác thực thành công!';
+          document.getElementById('msg').textContent = 'Email của bạn đã được xác thực. Bạn có thể đăng nhập ngay bây giờ.';
+          document.getElementById('link').classList.remove('hidden');
+        })
+        .catch(err => {
+          document.getElementById('icon').textContent = '❌';
+          document.getElementById('title').textContent = 'Xác thực thất bại';
+          document.getElementById('msg').textContent = err.message || 'Token có thể đã hết hạn. Vui lòng đăng ký lại.';
+          document.getElementById('link').classList.remove('hidden');
+        });
+    }
+  </script>
+</body>
+</html>

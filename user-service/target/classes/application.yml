@@ -15,7 +15,22 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  mail:
+    host: ${MAIL_HOST:smtp.mailtrap.io}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 jwt:
-  secret: restaurant_secret_key_12345678900
-  expiration: 86400000
+  secret: ${JWT_SECRET:restaurant_secret_key_12345678900}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:3000}
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3011}

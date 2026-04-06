@@ -170,7 +170,7 @@ public class KitchenService {
 
         Integer foodId = (Integer) data.get("foodId");
         Integer quantity = (Integer) data.get("quantity");
-        log.info("[TRU KHO] foodId={}, quantity={}, queueId={}", foodId, quantity, queueId);
+        log.debug("[TRU KHO] foodId={}, quantity={}, queueId={}", foodId, quantity, queueId);
 
         FoodDto food = null;
         try {
@@ -193,13 +193,13 @@ public class KitchenService {
         List<InventoryDeductRequest> requests = new ArrayList<>();
         for (IngredientDto ing : food.getIngredients()) {
             BigDecimal totalAmount = ing.getAmount().multiply(new BigDecimal(quantity));
-            log.info("[TRU KHO]  -> ingredientId={}, amount/phan={}, so phan={}, tong={}",
+            log.debug("[TRU KHO]  -> ingredientId={}, amount/phan={}, so phan={}, tong={}",
                     ing.getId(), ing.getAmount(), quantity, totalAmount);
             requests.add(new InventoryDeductRequest(ing.getId(), totalAmount));
         }
 
-        log.info("[TRU KHO] Goi inventory-service tru {} nguyen lieu cho foodId={}", requests.size(), foodId);
+        log.debug("[TRU KHO] Goi inventory-service tru {} nguyen lieu cho foodId={}", requests.size(), foodId);
         inventoryClient.deductStock(requests);
-        log.info("[TRU KHO] Thanh cong cho foodId={} x{}", foodId, quantity);
+        log.debug("[TRU KHO] Thanh cong cho foodId={} x{}", foodId, quantity);
     }
 }

@@ -103,12 +103,25 @@
     // Load danh sách bàn
     apiFetch('/api/tables').then(tables => {
       const sel = document.getElementById('table-select');
-      sel.innerHTML = '<option value="">-- Chọn bàn --</option>';
+      // BUG-004: Dùng DOM API thay vì innerHTML để tránh XSS
+      sel.textContent = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '-- Chọn bàn --';
+      sel.appendChild(placeholder);
       tables.forEach(t => {
-        sel.innerHTML += `<option value="${t.id}">${t.name} (sức chứa: ${t.capacity})</option>`;
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = `${t.name} (sức chứa: ${t.capacity || 'N/A'})`;
+        sel.appendChild(opt);
       });
     }).catch(() => {
-      document.getElementById('table-select').innerHTML = '<option value="">Không thể tải bàn</option>';
+      const sel = document.getElementById('table-select');
+      sel.textContent = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Không thể tải bàn';
+      sel.appendChild(opt);
     });
 
     document.getElementById('booking-form').addEventListener('submit', async function (e) {
@@ -127,15 +140,30 @@
       const end = new Date(start.getTime() + durationMin * 60000);
 
       btn.disabled = true;
-      btn.textContent = 'Đang đặt bàn...';
+      btn.textContent = 'Đang kiểm tra...';
 
       try {
+        // BUG-019: Kiểm tra availability trước khi POST reservation
+        const startIso = start.toISOString().slice(0, 19);
+        const endIso = end.toISOString().slice(0, 19);
+        const availRes = await apiFetch(
+          `/api/tables/${tableId}/reservations/availability?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`
+        );
+        if (!availRes.available) {
+          errorBox.textContent = 'Bàn này đã có đặt chỗ trong khung giờ đã chọn. Vui lòng chọn bàn hoặc giờ khác.';
+          errorBox.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Xác nhận đặt bàn';
+          return;
+        }
+
+        btn.textContent = 'Đang đặt bàn...';
         await apiFetch(`/api/tables/${tableId}/reservations`, {
           method: 'POST',
           body: JSON.stringify({
             party_size: parseInt(document.getElementById('party-size').value),
-            start_time: start.toISOString().slice(0, 19),
-            end_time: end.toISOString().slice(0, 19),
+            start_time: startIso,
+            end_time: endIso,
             notes: document.getElementById('notes').value || undefined,
           }),
         });

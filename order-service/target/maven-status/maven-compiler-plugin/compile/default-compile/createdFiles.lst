@@ -1,4 +1,5 @@
 com\restaurant\orderservice\dto\OrderSessionDetailDto.class
+com\restaurant\orderservice\service\SocketService.class
 com\restaurant\orderservice\dto\OrderSessionSummaryDto$OrderSessionSummaryDtoBuilder.class
 com\restaurant\orderservice\dto\OrderItemDto.class
 com\restaurant\orderservice\client\TableClient.class
@@ -13,7 +14,9 @@ com\restaurant\orderservice\dto\OrderDetailResponseDto$OrderDetailResponseDtoBui
 com\restaurant\orderservice\dto\OrderResponseDto$OrderResponseDtoBuilder.class
 com\restaurant\orderservice\repository\OrderRepository.class
 com\restaurant\orderservice\dto\OrderResponseDto.class
+com\restaurant\orderservice\config\FeignClientInterceptor.class
 com\restaurant\orderservice\dto\OrderSessionDetailDto$OrderSessionDetailDtoBuilder.class
+com\restaurant\orderservice\config\WebSocketConfig.class
 com\restaurant\orderservice\dto\OrderRequest.class
 com\restaurant\orderservice\OrderServiceApplication.class
 com\restaurant\orderservice\dto\OrderDetailResponseDto.class
@@ -22,3 +25,4 @@ com\restaurant\orderservice\entity\OrderDetail.class
 com\restaurant\orderservice\security\JwtAuthenticationFilter.class
 com\restaurant\orderservice\config\WebConfig.class
 com\restaurant\orderservice\service\OrderService.class
+com\restaurant\orderservice\client\InventoryClient.class

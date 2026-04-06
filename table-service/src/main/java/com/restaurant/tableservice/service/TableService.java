@@ -7,6 +7,7 @@ import com.restaurant.tableservice.repository.TableRepository;
 import com.restaurant.tableservice.repository.TableReservationRepository;
 import com.restaurant.tableservice.util.QrCodeUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,11 +20,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class TableService {
+
+    private static final Set<String> VALID_TABLE_STATUSES = Set.of("Trống", "Đang sử dụng", "Đã đặt", "Chờ xác nhận");
 
     private final TableRepository tableRepository;
     private final TableKeyRepository tableKeyRepository;
@@ -112,7 +116,11 @@ public class TableService {
             reservation.setCustomerId(((Number) payload.get("customer_id")).intValue());
         }
 
-        return tableReservationRepository.save(reservation);
+        try {
+            return tableReservationRepository.save(reservation);
+        } catch (DataIntegrityViolationException e) {
+            throw new RuntimeException("Bàn đã được đặt trong khung giờ này (xung đột đồng thời)");
+        }
     }
 
     public boolean isReservationAvailable(Integer tableId, String startStr, String endStr) {        if (tableId == null) throw new RuntimeException("Thiếu table_id");
@@ -168,6 +176,10 @@ public class TableService {
         if (name != null) existing.setName(name);
 
         if (status != null) {
+            // BUG-016: Validate status transition
+            if (!VALID_TABLE_STATUSES.contains(status)) {
+                throw new IllegalArgumentException("Trạng thái bàn không hợp lệ: " + status);
+            }
             existing.setStatus(status);
             if ("Trống".equals(status)) {
                 tableKeyRepository.invalidateKeysByTableId(id);
@@ -180,6 +192,9 @@ public class TableService {
 
     @Transactional
     public void deleteTable(@NonNull Integer id) {
+        // BUG-015: Xóa cascade reservation và key trước khi xóa bàn
+        tableKeyRepository.deleteByTableId(id);
+        tableReservationRepository.deleteByTableId(id);
         tableRepository.deleteById(id);
     }
 
@@ -192,8 +207,13 @@ public class TableService {
 
         if (deviceSession != null) {
             if (key.getDeviceSession() == null) {
-                key.setDeviceSession(deviceSession);
-                tableKeyRepository.save(key);
+                // BUG-005: Atomic claim — tránh 2 thiết bị claim cùng lúc
+                int claimed = tableKeyRepository.claimDeviceSession(key.getId(), deviceSession);
+                if (claimed == 0) {
+                    // Claim thất bại → re-fetch để kiểm tra ai đã claim
+                    key = tableKeyRepository.findById(key.getId()).orElse(key);
+                    if (!deviceSession.equals(key.getDeviceSession())) return false;
+                }
             } else if (!key.getDeviceSession().equals(deviceSession)) {
                 return false;
             }
@@ -213,7 +233,7 @@ public class TableService {
         tableKeyRepository.invalidateKeysByTableId(tableId);
         RestaurantTable table = getTableById(tableId);
         table.setStatus("Trống");
-        table.setIsBuffet(false);
+        // BUG-017: Không reset is_buffet — đây là thuộc tính vĩnh viễn của bàn
         tableRepository.save(table);
     }
 

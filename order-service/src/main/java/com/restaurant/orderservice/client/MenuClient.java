@@ -16,4 +16,8 @@ public interface MenuClient {
 
     @GetMapping("/api/foods/names")
     Map<Integer, String> getFoodNames(@RequestParam("foodIds") List<Integer> foodIds);
+
+    /** BUG-030: Lấy danh sách nguyên liệu cần dùng theo từng foodId. */
+    @GetMapping("/api/foods/ingredients")
+    Map<Integer, List<Map<String, Object>>> getFoodIngredients(@RequestParam("foodIds") List<Integer> foodIds);
 }

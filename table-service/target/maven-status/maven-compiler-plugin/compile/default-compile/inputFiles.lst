@@ -12,6 +12,7 @@ C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\rep
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\security\JwtUtil.java
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\security\JwtAuthenticationFilter.java
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\controller\LayoutController.java
+C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\config\SpaResourceConfig.java
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\exception\GlobalExceptionHandler.java
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\controller\TableController.java
 C:\restaurant-server\table-service\src\main\java\com\restaurant\tableservice\repository\TableReservationRepository.java

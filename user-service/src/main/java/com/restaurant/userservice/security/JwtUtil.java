@@ -47,4 +47,9 @@ public class JwtUtil {
             return false;
         }
     }
+
+    /** Trả về thời điểm hết hạn của token (epoch millis). */
+    public long extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration().getTime();
+    }
 }

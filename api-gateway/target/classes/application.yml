@@ -9,7 +9,10 @@ spring:
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            # BUG-029: Giới hạn CORS origin, không dùng wildcard *
+            allowedOriginPatterns:
+              - "http://localhost:3010"
+              - "http://localhost:3011"
             allowCredentials: true
             allowedMethods:
             - GET

@@ -9,7 +9,11 @@ spring:
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            # BUG-029: Giới hạn CORS origin, không dùng wildcard *
+            allowedOriginPatterns:
+              - "http://localhost:3001"  # Next.js dev server (fallback khi port 3000 bị chiếm)
+              - "http://localhost:3010"  # Fe-Admin (recommended port)
+              - "http://localhost:3011"  # Customer web + table-service
             allowCredentials: true
             allowedMethods:
             - GET

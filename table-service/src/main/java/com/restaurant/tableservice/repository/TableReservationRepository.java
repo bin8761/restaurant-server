@@ -34,6 +34,8 @@ public interface TableReservationRepository extends JpaRepository<TableReservati
 
     List<TableReservation> findByCustomerIdOrderByStartTimeDesc(Integer customerId);
 
+    void deleteByTableId(Integer tableId);
+
     /**
      * Tìm reservation confirmed/pending tiếp theo của một bàn sau thời điểm cho trước.
      * Dùng để kiểm tra xung đột khi cấp table key.

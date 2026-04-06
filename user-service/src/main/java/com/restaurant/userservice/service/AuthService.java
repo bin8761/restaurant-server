@@ -16,12 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private static final String CUSTOMER_ROLE_NAME = "CUSTOMER";
+    private static final Pattern EMAIL_REGEX =
+            Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -61,7 +64,7 @@ public class AuthService {
     @Transactional
     public void register(RegisterRequest request) {
         String identifier = request.getIdentifier().trim();
-        boolean isEmail = identifier.contains("@");
+        boolean isEmail = EMAIL_REGEX.matcher(identifier).matches();
 
         if (isEmail) {
             if (userRepository.existsByEmail(identifier)) {
@@ -138,7 +141,7 @@ public class AuthService {
     // Helpers
     // -------------------------------------------------------
     private Optional<User> resolveUser(String identifier) {
-        if (identifier.contains("@")) {
+        if (EMAIL_REGEX.matcher(identifier).matches()) {
             return userRepository.findByEmail(identifier);
         }
         String digitsOnly = identifier.replaceAll("[^0-9]", "");
@@ -150,20 +153,18 @@ public class AuthService {
     }
 
     private boolean verifyPassword(String rawPassword, User user) {
+        if (user.getPassword() == null) {
+            return false;
+        }
         if (user.getPassword().startsWith("$2")) {
             String dbHash = user.getPassword();
             if (dbHash.startsWith("$2b$")) {
                 dbHash = "$2a$" + dbHash.substring(4);
             }
-            boolean valid = BCrypt.checkpw(rawPassword, dbHash);
-            return valid;
+            return BCrypt.checkpw(rawPassword, dbHash);
         }
-        // Legacy plain-text password: upgrade to BCrypt
-        if (rawPassword.equals(user.getPassword())) {
-            user.setPassword(BCrypt.hashpw(rawPassword, BCrypt.gensalt(10)));
-            userRepository.save(user);
-            return true;
-        }
+        // BUG-028: Legacy plaintext không còn được chấp nhận
+        // Nếu password không có prefix BCrypt → tài khoản cần được reset
         return false;
     }
 

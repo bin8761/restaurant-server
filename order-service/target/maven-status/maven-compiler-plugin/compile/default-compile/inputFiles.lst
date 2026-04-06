@@ -16,6 +16,7 @@ C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\ser
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\service\SocketService.java
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\entity\OrderDetail.java
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\security\JwtUtil.java
+C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\client\InventoryClient.java
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\exception\GlobalExceptionHandler.java
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\repository\OrderRepository.java
 C:\restaurant-server\order-service\src\main\java\com\restaurant\orderservice\dto\OrderDetailResponseDto.java

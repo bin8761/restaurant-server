@@ -48,8 +48,10 @@ Script sẽ:
 
 ```bat
 cd Fe-Admin
-npm run dev
+npm run dev -- -p 3010
 ```
+
+> **Lưu ý:** Chỉ định port `-p 3010` để đúng với CORS config của API Gateway. Nếu không chỉ định, Next.js có thể chạy trên port 3001 (vì port 3000 đã bị API Gateway dùng) → gây lỗi CORS.
 
 Fe-Admin chạy tại: **http://localhost:3010**
 

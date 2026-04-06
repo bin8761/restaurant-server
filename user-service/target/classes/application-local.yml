@@ -3,3 +3,18 @@ spring:
     url: jdbc:mysql://localhost:3306/userdb?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8
     username: root
     password: ""
+  # -------------------------------------------------------
+  # Cấu hình mail cho local dev
+  # Dùng Mailtrap: https://mailtrap.io (free, catch-all)
+  # Tạo inbox -> lấy host/port/username/password điền vào đây
+  # Nếu để trống, hệ thống sẽ in token ra console thay vì gửi email
+  # -------------------------------------------------------
+  mail:
+    host: sandbox.smtp.mailtrap.io
+    port: 587
+    username: ""
+    password: ""
+
+app:
+  base-url: http://localhost:3000
+  frontend-url: http://localhost:3001

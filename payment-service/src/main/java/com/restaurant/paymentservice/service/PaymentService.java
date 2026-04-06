@@ -102,6 +102,22 @@ public class PaymentService {
                     return new RuntimeException("Không tìm thấy yêu cầu thanh toán");
                 });
 
+        // BUG-013: Validate order còn tồn tại trong order-service
+        try {
+            Map<String, Object> orderData = orderClient.getOrder(orderId);
+            if (orderData == null) {
+                throw new RuntimeException("Đơn hàng không tồn tại");
+            }
+            Object paymentStatus = orderData.get("payment_status");
+            if ("paid".equals(paymentStatus)) {
+                throw new RuntimeException("Đơn hàng đã được thanh toán trước đó");
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("⚠️ Không thể xác thực order từ order-service: {}", e.getMessage());
+        }
+
         Integer finalTableId = tableId != null ? tableId : request.getTableId();
         String finalTableKey = tableKey;
         if (finalTableKey == null) {
@@ -124,6 +140,11 @@ public class PaymentService {
 
         BigDecimal sessionTotal = BigDecimal.ZERO;
         for (PaymentRequest paymentRequest : sessionRequests) {
+            // BUG-014: Kiểm tra lại status trước khi xử lý — tránh double payment
+            if (!"waiting".equals(paymentRequest.getStatus())) {
+                log.warn("⚠️ PaymentRequest {} already has status '{}', skipping", paymentRequest.getId(), paymentRequest.getStatus());
+                continue;
+            }
             paymentRequest.setStatus("paid");
             paymentRequestRepository.save(paymentRequest);
 

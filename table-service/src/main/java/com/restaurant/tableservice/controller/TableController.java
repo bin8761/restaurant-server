@@ -42,16 +42,21 @@ public class TableController {
             @PathVariable @NonNull Integer id,
             @RequestBody Map<String, Object> payload,
             HttpServletRequest request) {
-        // Nếu customer đã đăng nhập, gắn customer_id từ JWT vào payload
+        // Luôn tạo mutable copy để tránh sửa đổi map gốc
+        payload = new java.util.HashMap<>(payload);
+
         Object userIdAttr = request.getAttribute("userId");
         Object roleIdAttr = request.getAttribute("roleId");
         if (userIdAttr != null) {
             Integer roleId = roleIdAttr != null ? ((Number) roleIdAttr).intValue() : 0;
-            // roleId 5 = CUSTOMER — tự động gắn customer_id
             if (roleId == 5) {
-                payload = new java.util.HashMap<>(payload);
+                // BUG-020: CUSTOMER — override bằng userId từ JWT, không tin payload
                 payload.put("customer_id", ((Number) userIdAttr).intValue());
             }
+            // Admin (roleId != 5) có thể đặt customer_id hợp lệ — giữ nguyên
+        } else {
+            // BUG-020: Unauthenticated — xóa customer_id để ngăn injection giả mạo
+            payload.remove("customer_id");
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(tableService.createReservation(id, payload));
     }

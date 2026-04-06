@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đặt bàn – Nhà hàng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/navbar.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="navbar"></div>
+
+  <main class="max-w-2xl mx-auto px-4 py-10">
+    <h1 class="text-2xl font-bold text-gray-800 mb-1">Đặt bàn</h1>
+    <p id="welcome-msg" class="text-sm text-gray-500 mb-6"></p>
+
+    <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+
+    <!-- Form -->
+    <form id="booking-form" class="bg-white rounded-2xl border shadow-sm p-6 space-y-5">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Chọn bàn *</label>
+        <select id="table-select" required
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="">-- Đang tải danh sách bàn... --</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Ngày *</label>
+          <input id="date" type="date" required
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Giờ *</label>
+          <input id="time" type="time" required
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Thời gian dự kiến</label>
+          <select id="duration"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="60">1 tiếng</option>
+            <option value="90">1.5 tiếng</option>
+            <option value="120">2 tiếng</option>
+            <option value="150">2.5 tiếng</option>
+            <option value="180">3 tiếng</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Số khách *</label>
+          <input id="party-size" type="number" required min="1" max="50" value="2"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+        <textarea id="notes" rows="3" placeholder="Yêu cầu đặc biệt, dịp đặc biệt..."
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"></textarea>
+      </div>
+
+      <button type="submit" id="btn-submit"
+        class="w-full bg-orange-600 text-white font-semibold py-3 rounded-lg hover:bg-orange-700 disabled:opacity-60 transition">
+        Xác nhận đặt bàn
+      </button>
+    </form>
+
+    <!-- Success -->
+    <div id="success-card" class="hidden bg-white rounded-2xl border shadow-sm p-8 text-center">
+      <div class="text-5xl mb-4">🎉</div>
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Đặt bàn thành công!</h2>
+      <p class="text-gray-500 text-sm mb-6">Chúng tôi đã nhận được yêu cầu và sẽ liên hệ xác nhận sớm nhất.</p>
+      <div class="flex flex-col gap-3">
+        <a href="/my-reservations/"
+          class="bg-orange-600 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-orange-700 transition">
+          Xem lịch sử đặt bàn
+        </a>
+        <button onclick="resetForm()"
+          class="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 transition">
+          Đặt thêm bàn
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    requireAuth(); // redirect về /login/ nếu chưa đăng nhập
+    renderNavbar();
+
+    const user = getUser();
+    document.getElementById('welcome-msg').textContent = `Xin chào, ${user?.fullName || user?.username}!`;
+
+    // Ngày tối thiểu = hôm nay
+    document.getElementById('date').min = new Date().toISOString().split('T')[0];
+
+    // Load danh sách bàn
+    apiFetch('/api/tables').then(tables => {
+      const sel = document.getElementById('table-select');
+      // BUG-004: Dùng DOM API thay vì innerHTML để tránh XSS
+      sel.textContent = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '-- Chọn bàn --';
+      sel.appendChild(placeholder);
+      tables.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = `${t.name} (sức chứa: ${t.capacity || 'N/A'})`;
+        sel.appendChild(opt);
+      });
+    }).catch(() => {
+      const sel = document.getElementById('table-select');
+      sel.textContent = '';
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Không thể tải bàn';
+      sel.appendChild(opt);
+    });
+
+    document.getElementById('booking-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      const errorBox = document.getElementById('error-box');
+      errorBox.classList.add('hidden');
+
+      const tableId = document.getElementById('table-select').value;
+      if (!tableId) { errorBox.textContent = 'Vui lòng chọn bàn'; errorBox.classList.remove('hidden'); return; }
+
+      const date = document.getElementById('date').value;
+      const time = document.getElementById('time').value;
+      const durationMin = parseInt(document.getElementById('duration').value);
+      const start = new Date(`${date}T${time}:00`);
+      const end = new Date(start.getTime() + durationMin * 60000);
+
+      btn.disabled = true;
+      btn.textContent = 'Đang kiểm tra...';
+
+      try {
+        // BUG-019: Kiểm tra availability trước khi POST reservation
+        const startIso = start.toISOString().slice(0, 19);
+        const endIso = end.toISOString().slice(0, 19);
+        const availRes = await apiFetch(
+          `/api/tables/${tableId}/reservations/availability?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`
+        );
+        if (!availRes.available) {
+          errorBox.textContent = 'Bàn này đã có đặt chỗ trong khung giờ đã chọn. Vui lòng chọn bàn hoặc giờ khác.';
+          errorBox.classList.remove('hidden');
+          btn.disabled = false;
+          btn.textContent = 'Xác nhận đặt bàn';
+          return;
+        }
+
+        btn.textContent = 'Đang đặt bàn...';
+        await apiFetch(`/api/tables/${tableId}/reservations`, {
+          method: 'POST',
+          body: JSON.stringify({
+            party_size: parseInt(document.getElementById('party-size').value),
+            start_time: startIso,
+            end_time: endIso,
+            notes: document.getElementById('notes').value || undefined,
+          }),
+        });
+        document.getElementById('booking-form').classList.add('hidden');
+        document.getElementById('success-card').classList.remove('hidden');
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Xác nhận đặt bàn';
+      }
+    });
+
+    function resetForm() {
+      document.getElementById('booking-form').reset();
+      document.getElementById('booking-form').classList.remove('hidden');
+      document.getElementById('success-card').classList.add('hidden');
+      document.getElementById('date').min = new Date().toISOString().split('T')[0];
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+com\restaurant\inventoryservice\config\WebConfig.class
+com\restaurant\inventoryservice\security\JwtAuthenticationFilter.class
+com\restaurant\inventoryservice\InventoryServiceApplication.class
+com\restaurant\inventoryservice\dto\InventoryDeductRequest.class
+com\restaurant\inventoryservice\entity\Ingredient.class
+com\restaurant\inventoryservice\service\InventoryService.class
+com\restaurant\inventoryservice\repository\IngredientRepository.class
+com\restaurant\inventoryservice\security\JwtUtil.class
+com\restaurant\inventoryservice\exception\GlobalExceptionHandler.class
+com\restaurant\inventoryservice\controller\InventoryController.class

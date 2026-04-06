@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thực đơn – Nhà hàng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/navbar.js"></script>
+</head>
+<body class="min-h-screen bg-gray-50">
+  <div id="navbar"></div>
+
+  <main class="max-w-5xl mx-auto px-4 py-10">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Thực đơn</h1>
+
+    <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+
+    <!-- Category tabs -->
+    <div id="category-tabs" class="flex gap-2 flex-wrap mb-6 hidden"></div>
+
+    <div id="loading" class="text-gray-500 text-sm">Đang tải thực đơn...</div>
+    <div id="grid" class="hidden grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5"></div>
+    <div id="empty" class="hidden text-gray-400 text-sm">Không có món nào.</div>
+  </main>
+
+  <script>
+    renderNavbar();
+
+    let allItems = [];
+    let activeCategory = 'all';
+
+    function renderGrid() {
+      const filtered = activeCategory === 'all'
+        ? allItems
+        : allItems.filter(i => (i.categoryName || 'Khác') === activeCategory);
+
+      const grid = document.getElementById('grid');
+      if (filtered.length === 0) {
+        grid.classList.add('hidden');
+        document.getElementById('empty').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('empty').classList.add('hidden');
+      grid.classList.remove('hidden');
+      grid.innerHTML = filtered.map(item => `
+        <div class="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+          ${item.imageUrl ? `<img src="${escHtml(item.imageUrl)}" alt="${escHtml(item.name)}" class="w-full h-44 object-cover" />` : ''}
+          <div class="p-4">
+            ${item.categoryName ? `<span class="text-xs text-orange-600 font-medium uppercase tracking-wide">${escHtml(item.categoryName)}</span>` : ''}
+            <h3 class="font-semibold text-gray-800 mt-1 mb-1">${escHtml(item.name)}</h3>
+            ${item.description ? `<p class="text-xs text-gray-400 mb-2 line-clamp-2">${escHtml(item.description)}</p>` : ''}
+            <p class="text-orange-600 font-bold">${Number(item.price).toLocaleString('vi-VN')}đ</p>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderTabs(items) {
+      const cats = ['all', ...new Set(items.map(i => i.categoryName || 'Khác'))];
+      if (cats.length <= 2) return; // chỉ 1 danh mục → không cần tab
+      const tabs = document.getElementById('category-tabs');
+      tabs.classList.remove('hidden');
+      tabs.innerHTML = cats.map(cat => `
+        <button onclick="setCategory('${escHtml(cat)}')" data-cat="${escHtml(cat)}"
+          class="cat-tab px-4 py-1.5 rounded-full text-sm font-medium border transition ${cat === 'all' ? 'bg-orange-600 text-white border-orange-600' : 'border-gray-300 text-gray-600 hover:border-orange-400'}">
+          ${cat === 'all' ? 'Tất cả' : escHtml(cat)}
+        </button>`).join('');
+    }
+
+    function setCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-tab').forEach(btn => {
+        const isActive = btn.dataset.cat === cat;
+        btn.className = `cat-tab px-4 py-1.5 rounded-full text-sm font-medium border transition ${
+          isActive ? 'bg-orange-600 text-white border-orange-600' : 'border-gray-300 text-gray-600 hover:border-orange-400'
+        }`;
+      });
+      renderGrid();
+    }
+
+    apiFetch('/api/menu/items')
+      .then(data => {
+        document.getElementById('loading').classList.add('hidden');
+        allItems = (Array.isArray(data) ? data : data?.items ?? []).filter(i => i.available !== false);
+        renderTabs(allItems);
+        renderGrid();
+      })
+      .catch(err => {
+        document.getElementById('loading').classList.add('hidden');
+        const eb = document.getElementById('error-box');
+        eb.textContent = err.message || 'Không thể tải thực đơn';
+        eb.classList.remove('hidden');
+      });
+  </script>
+</body>
+</html>

@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -25,19 +26,59 @@ public class ImageUploadController {
     @Value("${upload.dir:uploads}")
     private String uploadDir;
 
+    private static final Set<String> ALLOWED_CATEGORIES = Set.of("foods", "users", "temp");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+
+    // Ngăn path traversal: chỉ cho phép tên file thuần (không có / \ ..)
+    private String sanitizeFilename(String filename) {
+        if (filename == null) return null;
+        // Chỉ lấy phần cuối sau dấu / hoặc \
+        String base = Paths.get(filename).getFileName().toString();
+        // Từ chối nếu vẫn còn .. hoặc ký tự nguy hiểm
+        if (base.contains("..") || base.isBlank()) return null;
+        return base;
+    }
+
+    // Kiểm tra path nằm trong thư mục cha
+    private boolean isWithinUploadDir(Path resolved) {
+        try {
+            Path base = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path target = resolved.toAbsolutePath().normalize();
+            return target.startsWith(base);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ============== SERVE IMAGE (GET) ==============
     @GetMapping("/{category}/{filename}")
     public ResponseEntity<Resource> serveImage(@PathVariable String category, @PathVariable String filename) {
-        try {
-            Path filePath = Paths.get(uploadDir, category, filename);
-            File file = filePath.toFile();
+        // BUG-NEW-001: Chặn path traversal
+        if (!ALLOWED_CATEGORIES.contains(category)) {
+            return ResponseEntity.badRequest().build();
+        }
+        String safeFilename = sanitizeFilename(filename);
+        if (safeFilename == null) {
+            return ResponseEntity.badRequest().build();
+        }
 
+        try {
+            Path filePath = Paths.get(uploadDir, category, safeFilename);
+            if (!isWithinUploadDir(filePath)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            File file = filePath.toFile();
             if (!file.exists()) {
                 return ResponseEntity.notFound().build();
             }
 
             String contentType = Files.probeContentType(filePath);
             if (contentType == null) contentType = "application/octet-stream";
+            // Chỉ phục vụ file ảnh
+            if (!contentType.startsWith("image/")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
 
             Resource resource = new FileSystemResource(file);
             return ResponseEntity.ok()
@@ -83,9 +124,14 @@ public class ImageUploadController {
     // ============== PRIVATE HELPERS ==============
     private String saveAndResizeImage(MultipartFile file, String subDir, int targetWidth) throws IOException {
         String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename != null && originalFilename.contains(".")
-                ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                : ".jpg";
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        }
+        // BUG-NEW-001: Validate extension — chặn upload file nguy hiểm
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IOException("Loại file không được phép. Chỉ chấp nhận: jpg, jpeg, png, gif, webp");
+        }
 
         String uniqueFilename = UUID.randomUUID().toString() + extension;
 
@@ -94,7 +140,10 @@ public class ImageUploadController {
             Files.createDirectories(targetPath);
         }
 
-        File destFile = new File(targetPath.toFile(), uniqueFilename);
+        File destFile = targetPath.resolve(uniqueFilename).toFile();
+        if (!isWithinUploadDir(destFile.toPath())) {
+            throw new IOException("Đường dẫn file không hợp lệ");
+        }
 
         Thumbnails.of(file.getInputStream())
                 .width(targetWidth)
@@ -105,7 +154,16 @@ public class ImageUploadController {
     }
 
     private ResponseEntity<Map<String, String>> deleteImage(String filename, String subDir) {
-        File file = Paths.get(uploadDir, subDir, filename).toFile();
+        // BUG-NEW-001: Chặn path traversal trong delete
+        String safeFilename = sanitizeFilename(filename);
+        if (safeFilename == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Tên file không hợp lệ"));
+        }
+        Path filePath = Paths.get(uploadDir, subDir, safeFilename);
+        if (!isWithinUploadDir(filePath)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Đường dẫn không hợp lệ"));
+        }
+        File file = filePath.toFile();
         if (!file.exists()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Không tìm thấy hình ảnh"));
         }

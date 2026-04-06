@@ -1,5 +1,6 @@
 package com.restaurant.orderservice.service;
 
+import com.restaurant.orderservice.client.InventoryClient;
 import com.restaurant.orderservice.client.KitchenClient;
 import com.restaurant.orderservice.client.MenuClient;
 import com.restaurant.orderservice.client.PaymentClient;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,7 @@ public class OrderService {
     private final MenuClient menuClient;
     private final KitchenClient kitchenClient;
     private final PaymentClient paymentClient;
+    private final InventoryClient inventoryClient;
     private final SocketService socketService;
 
     private boolean hasItems(OrderRequest request) {
@@ -148,14 +151,6 @@ public class OrderService {
         }
         return orders.isEmpty() ? "Chờ xác nhận" : orders.get(orders.size() - 1).getStatus();
     }
-        if (orders.stream().anyMatch(order -> "?ang n?u".equals(order.getStatus()))) {
-            return "?ang n?u";
-        }
-        if (orders.stream().allMatch(order -> "Ho?n th?nh".equals(order.getStatus()))) {
-            return "Ho?n th?nh";
-        }
-        return orders.isEmpty() ? "Ch? x?c nh?n" : orders.get(orders.size() - 1).getStatus();
-    }
 
     public OrderResponseDto getOrderResponseById(@NonNull Integer id) {
         return toOrderResponse(getOrderById(id));
@@ -235,7 +230,7 @@ public class OrderService {
                 .build();
     }
 
-    @Transactional
+    @Transactional(timeout = 30)
     public Order createOrder(OrderRequest request) {
         boolean isStaffRequest = request.getUser_id() != null;
 
@@ -319,10 +314,8 @@ public class OrderService {
         order.setPaymentStatus("unpaid");
 
         if (isBuffetActivationOrder(request)) {
-            String buffetSessionId = request.getBuffet_session_id();
-            if (buffetSessionId == null || buffetSessionId.isBlank()) {
-                buffetSessionId = UUID.randomUUID().toString();
-            }
+            // BUG-022: Luôn generate buffet_session_id server-side, không tin FE
+            String buffetSessionId = UUID.randomUUID().toString();
             order.setBuffetSessionId(buffetSessionId);
         } else if (isBuffetFoodOrder(request)) {
             Order activeBuffetOrder = orderRepository
@@ -437,14 +430,20 @@ public class OrderService {
                 .map(OrderDetail::getId)
                 .collect(Collectors.toList());
 
+        // BUG-024: Gọi kitchen TRƯỚC khi update status — nếu thất bại thì rollback
+        // Exception từ kitchenClient sẽ được propagate lên, transaction sẽ rollback
         try {
             kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
         } catch (Exception e) {
-            log.warn("Kitchen service không khả dụng: {}", e.getMessage());
+            log.error("❌ Kitchen service không khả dụng — hủy xác nhận order {}: {}", id, e.getMessage());
+            throw new RuntimeException("Không thể gửi order đến bếp: " + e.getMessage());
         }
 
         order.setStatus("Đang nấu");
         Order savedOrder = orderRepository.save(order);
+
+        // BUG-030: Tự động trừ tồn kho nguyên liệu
+        deductInventoryForOrder(order);
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("order_id", savedOrder.getId());
@@ -454,11 +453,54 @@ public class OrderService {
         socketService.emitOrderStatusUpdated(savedOrder.getTableId(), payload);
     }
 
+    /**
+     * BUG-030: Trừ kho nguyên liệu cho tất cả món trong order.
+     * Lỗi bên inventory không làm hỏng luồng confirm — chỉ log warning.
+     */
+    private void deductInventoryForOrder(Order order) {
+        try {
+            List<Integer> foodIds = order.getDetails().stream()
+                    .map(OrderDetail::getFoodId)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (foodIds.isEmpty()) return;
+
+            // Map: foodId → [{ingredient_id, amount}]
+            Map<Integer, List<Map<String, Object>>> ingredientMap =
+                    menuClient.getFoodIngredients(foodIds);
+
+            // Tổng hợp: ingredientId → tổng lượng cần trừ (amount * quantity)
+            Map<Integer, BigDecimal> totals = new HashMap<>();
+            for (OrderDetail detail : order.getDetails()) {
+                List<Map<String, Object>> ingredients = ingredientMap.get(detail.getFoodId());
+                if (ingredients == null || ingredients.isEmpty()) continue;
+                for (Map<String, Object> ing : ingredients) {
+                    Integer ingId = ((Number) ing.get("ingredient_id")).intValue();
+                    BigDecimal amount = new BigDecimal(ing.get("amount").toString())
+                            .multiply(new BigDecimal(detail.getQuantity()));
+                    totals.merge(ingId, amount, BigDecimal::add);
+                }
+            }
+
+            if (totals.isEmpty()) return;
+
+            List<Map<String, Object>> deductRequests = new ArrayList<>();
+            for (Map.Entry<Integer, BigDecimal> entry : totals.entrySet()) {
+                Map<String, Object> req = new HashMap<>();
+                req.put("ingredient_id", entry.getKey());
+                req.put("amount", entry.getValue());
+                deductRequests.add(req);
+            }
+            inventoryClient.batchDeduct(deductRequests);
+            log.info("✅ Đã trừ kho {} nguyên liệu cho order {}", deductRequests.size(), order.getId());
+        } catch (Exception e) {
+            log.warn("⚠️ Không thể trừ kho cho order {} — inventory service lỗi: {}", order.getId(), e.getMessage());
+            // Không throw — tránh rollback order đã confirmed thành công
+        }
+    }
+
     @Transactional
     public Map<String, Object> confirmSessionOrders(Integer tableId, String tableKey) {
-        if (tableId == null || tableKey == null || tableKey.isBlank()) {
-            throw new RuntimeException("Thiếu thông tin phiên bàn");
-        }
 
         List<Order> sessionOrders = orderRepository
                 .findByTableIdAndTableKeyAndPaymentStatusNotOrderByOrderTimeAsc(tableId, tableKey, "paid");
@@ -529,8 +571,16 @@ public class OrderService {
             throw new RuntimeException("Không có đơn chưa thanh toán cho phiên bàn này");
         }
 
+        // BUG-010: Lọc ra chỉ những order thực sự còn "unpaid" (chưa gửi yêu cầu)
+        List<Order> pendingOrders = sessionOrders.stream()
+                .filter(o -> "unpaid".equals(o.getPaymentStatus()))
+                .toList();
+        if (pendingOrders.isEmpty()) {
+            throw new RuntimeException("Yêu cầu thanh toán đã được gửi trước đó");
+        }
+
         BigDecimal sessionTotal = BigDecimal.ZERO;
-        for (Order order : sessionOrders) {
+        for (Order order : pendingOrders) {
             if (order.getTotal() != null) {
                 sessionTotal = sessionTotal.add(order.getTotal());
             }
@@ -556,7 +606,7 @@ public class OrderService {
         payload.put("table_id", seedOrder.getTableId());
         payload.put("table_key", seedOrder.getTableKey());
         payload.put("payment_status", "waiting");
-        payload.put("order_ids", sessionOrders.stream().map(Order::getId).toList());
+        payload.put("order_ids", pendingOrders.stream().map(Order::getId).toList());
         payload.put("total_amount", sessionTotal);
         socketService.emitOrderStatusUpdated(seedOrder.getTableId(), payload);
 
@@ -597,6 +647,11 @@ public class OrderService {
             }
             if (tableKey != null && order.getTableKey() != null && !tableKey.equals(order.getTableKey())) {
                 throw new RuntimeException("Đơn hàng không thuộc phiên bàn đang thanh toán");
+            }
+            // BUG-003: Ngăn thanh toán 2 lần
+            if ("paid".equals(order.getPaymentStatus())) {
+                log.warn("⚠️ Order {} đã được thanh toán trước đó, bỏ qua", order.getId());
+                continue;
             }
             order.setPaymentStatus("paid");
             order.setStatus("Hoàn thành");

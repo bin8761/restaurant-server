@@ -74,7 +74,7 @@
                 ${r.notes ? `<p class="text-sm text-gray-400 mt-1 italic">"${escHtml(r.notes)}"</p>` : ''}
               </div>
               <span class="text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${STATUS_COLORS[r.status] || 'bg-gray-100 text-gray-600'}">
-                ${STATUS_LABELS[r.status] || r.status}
+                ${escHtml(STATUS_LABELS[r.status] || r.status)}
               </span>
             </div>
           </div>`).join('');

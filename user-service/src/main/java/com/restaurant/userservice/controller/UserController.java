@@ -25,21 +25,21 @@ public class UserController {
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> getUsers(HttpServletRequest request) {
         Integer roleId = (Integer) request.getAttribute("roleId");
-        if (roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (roleId == null || roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @GetMapping("/users/{id}")
     public ResponseEntity<UserDto> getUserById(@PathVariable @NonNull Integer id, HttpServletRequest request) {
         Integer roleId = (Integer) request.getAttribute("roleId");
-        if (roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (roleId == null || roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @PostMapping("/users")
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserCreateRequest createRequest, HttpServletRequest request) {
         Integer roleId = (Integer) request.getAttribute("roleId");
-        if (roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (roleId == null || roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(createRequest));
     }
 
@@ -53,7 +53,7 @@ public class UserController {
     @DeleteMapping("/users/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable @NonNull Integer id, HttpServletRequest request) {
         Integer roleId = (Integer) request.getAttribute("roleId");
-        if (roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (roleId == null || roleId != 1) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         userService.deleteUser(id);
         return ResponseEntity.ok().build();
     }

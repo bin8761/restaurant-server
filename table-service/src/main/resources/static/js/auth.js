@@ -1,31 +1,47 @@
-// Quản lý token và thông tin user trong localStorage
+// BUG-012: Dùng sessionStorage thay localStorage để giảm nguy cơ XSS đánh cắp token.
+// Token sẽ bị xóa khi đóng tab/trình duyệt thay vì tồn tại vĩnh viễn.
 const TOKEN_KEY = 'customer_token';
 const USER_KEY  = 'customer_user';
 
 function saveAuth(token, user) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
 function getUser() {
   try {
-    return JSON.parse(localStorage.getItem(USER_KEY));
+    return JSON.parse(sessionStorage.getItem(USER_KEY));
   } catch {
     return null;
   }
 }
 
 function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
 }
 
 function isLoggedIn() {
   return !!getToken();
+}
+
+// Đăng xuất: gọi backend để blacklist token, sau đó xóa storage
+async function logout() {
+  const token = getToken();
+  if (token) {
+    try {
+      await fetch(API_BASE + '/api/users/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+    } catch (_) { /* bỏ qua lỗi mạng */ }
+  }
+  clearAuth();
+  window.location.href = '/login/';
 }
 
 // Gọi trước khi render trang cần đăng nhập
