@@ -90,6 +90,8 @@ async function fetchJson(url, options = {}) {
 }
 
 function getGatewayUrl() {
+  const fromConfig = typeof window.API_BASE === 'string' ? window.API_BASE.trim() : '';
+  if (fromConfig) return fromConfig.replace(/\/+$/, '');
   return `${window.location.protocol}//${window.location.host.replace(':3011', ':3000')}`;
 }
 

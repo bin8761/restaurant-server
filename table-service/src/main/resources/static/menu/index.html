@@ -34,7 +34,7 @@
     function getImageUrl(imageUrl) {
       if (!imageUrl) return '';
       if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-      const base = window.location.protocol + '//' + window.location.hostname + ':3000';
+      const base = (window.API_BASE || '').replace(/\/+$/, '');
       if (imageUrl.startsWith('/api/images/')) return base + imageUrl;
       if (imageUrl.startsWith('/image-service/uploads/'))
         return base + imageUrl.replace('/image-service/uploads/', '/api/images/');
