@@ -31,11 +31,45 @@ State:
     - User gap loi TOSE CLI khi tao DB: `db_type is required` du da chon MySQL trong prompt.
     - User tao DB tren web TOSE va nhan loi: `Provisioning failed. Delete and recreate the database.`
     - User da tao MySQL tren Railway thanh cong va da set 4 bien env cho service order-service.
+    - User-service register da goi thanh cong sau khi dung password dung policy.
+    - Order-service va user-service da tao schema trong Railway MySQL (`orderdb`, `userdb`).
+    - Da sua inventory-service: them `spring-boot-maven-plugin` trong `inventory-service/pom.xml` de tao executable jar.
+    - Da sua inventory-service datasource sang env fallback trong `inventory-service/src/main/resources/application.yml`.
+    - Da them `inventory-service/Dockerfile` va `inventory-service/.dockerignore`.
+    - Build verify thanh cong inventory-service bang portable Maven.
+    - Da sua menu-service datasource sang env fallback trong `menu-service/src/main/resources/application.yml`.
+    - Da sua menu-service inventory URL sang env fallback (`INVENTORY_SERVICE_URL`).
+    - Da them `menu-service/Dockerfile` va `menu-service/.dockerignore`.
+    - Build verify thanh cong menu-service bang portable Maven.
+    - Da sua kitchen-service datasource sang env fallback trong `kitchen-service/src/main/resources/application.yml`.
+    - Da bo sung env service URLs cho kitchen-service (`ORDER_SERVICE_URL`, `MENU_SERVICE_URL`, `INVENTORY_SERVICE_URL`).
+    - Da them `spring-boot-maven-plugin` trong `kitchen-service/pom.xml` de tao executable jar.
+    - Da them `kitchen-service/Dockerfile` va `kitchen-service/.dockerignore`.
+    - Build verify thanh cong kitchen-service bang portable Maven.
+    - Da sua payment-service datasource sang env fallback trong `payment-service/src/main/resources/application.yml`.
+    - Da sua payment-service order URL sang env fallback (`ORDER_SERVICE_URL`).
+    - Da them `spring-boot-maven-plugin` trong `payment-service/pom.xml` de tao executable jar.
+    - Da them `payment-service/Dockerfile` va `payment-service/.dockerignore`.
+    - Build verify thanh cong payment-service bang portable Maven.
+    - Da sua table-service datasource sang env fallback trong `table-service/src/main/resources/application.yml`.
+    - Da them `table-service/Dockerfile` va `table-service/.dockerignore`.
+    - Build verify thanh cong table-service bang portable Maven.
+    - Da sua image-service upload dir sang env fallback trong `image-service/src/main/resources/application.yml`.
+    - Da them `spring-boot-maven-plugin` trong `image-service/pom.xml` de tao executable jar.
+    - Da them `image-service/Dockerfile` va `image-service/.dockerignore`.
+    - Build verify thanh cong image-service bang portable Maven.
+    - Da sua api-gateway route URIs sang env fallback trong `api-gateway/src/main/resources/application.yml`.
+    - Da sua api-gateway CORS allowed origins sang env fallback (`CORS_ALLOWED_ORIGIN_1..3`).
+    - Da them `api-gateway/Dockerfile` va `api-gateway/.dockerignore`.
+    - Build verify thanh cong api-gateway bang portable Maven.
+    - Da sua Fe-Admin rewrite image proxy sang env `NEXT_PUBLIC_GATEWAY_URL` trong `Fe-Admin/next.config.mjs`.
+    - Da them `Fe-Admin/Dockerfile` va `Fe-Admin/.dockerignore` de deploy Railway.
+    - Da cai deps cho Fe-Admin (`npm ci`) va build verify thanh cong (`npm run build`).
   - Now:
-    - User yeu cau chuan hoa `server.port` cho cac service con lai de nhan bien `PORT` tren Railway.
+    - Cho user commit/push va deploy Fe-Admin tren Railway (cum C), tro ve gateway cum C.
   - Next:
-    - Sua dong loat `server.port` trong application.yml cua cac service chua doi.
-    - Huong dan user push/redeploy sau khi sua.
+    - User set env cho Fe-Admin (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GATEWAY_URL`, ws service URLs) va test login.
+    - Neu OK, chot checklist kiem thu lien cum A/B/C.
 
 Open questions (UNCONFIRMED if needed):
 - Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).
