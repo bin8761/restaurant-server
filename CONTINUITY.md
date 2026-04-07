@@ -1,5 +1,6 @@
-Goal (incl. success criteria):
+﻿Goal (incl. success criteria):
 - Deploy du an restaurant-server len TOSE (https://tose.sh) theo docs chinh thuc, chay duoc BE full + Fe-Admin.
+- Tich hop thanh toan SePay vao he thong theo tai lieu mau `package-sepay-integration-reference`.
 
 Constraints/Assumptions:
 - Apply all rules under C:\Users\yasuo\Desktop\restaurant-server\rule.
@@ -11,6 +12,12 @@ Constraints/Assumptions:
 - Do not run Prisma CLI; the user will run all Prisma CLI commands.
 
 Key decisions:
+- User yeu cau doc `rule/continuity-ledger-rule.mdc` va bat buoc ap dung cho moi request ke tu 2026-04-08.
+- Ap dung skill brainstorming truoc khi vao implementation cho yeu cau tich hop SePay.
+- User chot scope muc 3: tich hop SePay full backend + UI khach (`table-service`) + admin theo doi/doi soat.
+- Chot muc doi soat admin SePay = muc 2 (theo doi + thao tac danh dau da xu ly hoan tien thu cong cho case webhook muon).
+- Chot rule van hanh: SePay chay song song voi cash (khong thay the cash flow hien tai).
+- Chon Approach A: mo rong `payment-service` theo provider-based (`cash` + `sepay`), khong tao microservice moi.
 - TOSE docs da duoc doc lai (overview + CLI + API): project mo ta theo mo hinh 1 app/1 port.
 - Chot huong deploy: 1 project = 1 container.
 - Chot pham vi: deploy du 10 project (gateway + 8 services + Fe-Admin).
@@ -21,6 +28,7 @@ Key decisions:
 
 State:
   - Done:
+    - Da doc file `rule/continuity-ledger-rule.mdc` va dong bo vao quy trinh lam viec moi turn.
     - Xac nhan backend/gateway login OK bang PowerShell (goi truc tiep 3005 va qua 3000).
     - Khoanh vung loi browser la CORS duplicate header va da patch gateway local.
     - Chot huong deploy TOSE tach BE va FE, moi project 1 container.
@@ -65,17 +73,26 @@ State:
     - Da sua Fe-Admin rewrite image proxy sang env `NEXT_PUBLIC_GATEWAY_URL` trong `Fe-Admin/next.config.mjs`.
     - Da them `Fe-Admin/Dockerfile` va `Fe-Admin/.dockerignore` de deploy Railway.
     - Da cai deps cho Fe-Admin (`npm ci`) va build verify thanh cong (`npm run build`).
+    - Da phan tich loi login Railway `Failed to fetch`: request dang goi sai URL co `:3000` (`https://...railway.app:3000/api/users/login`), kha nang cao la loi network endpoint (khong phai sai credential).
+    - Da xac dinh user dang gap loi tren customer frontend (`table-service`), khong phai Fe-Admin; domain trong anh la `restaurant-server-production-3f43...`.
+    - Da sua `table-service/src/main/resources/static/js/config.js` de bo localStorage override tren production va sanitize URL runtime neu bi dinh `:3000`.
+    - Da sua `table-service/src/main/resources/static/js/app.js` de uu tien `window.API_BASE` thay vi hardcode `host.replace(':3011', ':3000')`.
+    - Da sua `table-service/src/main/resources/static/menu/index.html` de dung `window.API_BASE` cho image URL, bo hardcode `hostname + ':3000'`.
+    - Da commit va push len `origin/main` commit `0bc3ec6` de trigger Railway build lai cho fix table-service.
+    - User da approve toan bo design sections: Architecture, Data Flow, Error Handling, Testing cho SePay.
   - Now:
-    - Cho user commit/push va deploy Fe-Admin tren Railway (cum C), tro ve gateway cum C.
+    - Dang ghi design doc SePay vao `docs/plans/2026-04-08-sepay-integration-design.md` va chuan bi commit.
   - Next:
-    - User set env cho Fe-Admin (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_GATEWAY_URL`, ws service URLs) va test login.
-    - Neu OK, chot checklist kiem thu lien cum A/B/C.
+    - Commit design doc.
+    - Chuyen sang skill writing-plans de lap implementation plan.
 
 Open questions (UNCONFIRMED if needed):
 - Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).
+- UNCONFIRMED: Co yeu cau auto-refund qua API provider hay chi danh dau refund thu cong tren admin.
 
 Working set (files/ids/commands):
 - CONTINUITY.md
+- docs/plans/2026-04-08-sepay-integration-design.md
 - api-gateway/src/main/resources/application-local.yml
 - Fe-Admin/app/login/page.tsx
 - docs.tose.sh (overview/cli/api)
