@@ -6,3 +6,10 @@ spring:
 
 services:
   order: http://localhost:3003
+
+payment:
+  sepay:
+    api-key: ""
+    webhook-secret: ""
+    return-url: ""
+    internal-auth-header: ""

@@ -23,3 +23,16 @@ jwt:
 services:
   order: ${ORDER_SERVICE_URL:http://localhost:3003}
 
+payment:
+  sepay:
+    base-url: ${SEPAY_BASE_URL:https://api.sepay.vn}
+    create-path: ${SEPAY_CREATE_PATH:/v1/payments/create}
+    verify-path: ${SEPAY_VERIFY_PATH:/v1/payments/verify}
+    api-key: ${SEPAY_API_KEY:}
+    webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    return-url: ${SEPAY_RETURN_URL:}
+    timeout-minutes: ${SEPAY_TIMEOUT_MINUTES:15}
+    timeout-check-ms: ${SEPAY_TIMEOUT_CHECK_MS:30000}
+    retry-sync-ms: ${SEPAY_RETRY_SYNC_MS:45000}
+    internal-auth-header: ${SEPAY_INTERNAL_AUTH_HEADER:}
+

@@ -17,7 +17,7 @@ public interface OrderClient {
 
     @PostMapping("/api/orders/complete-payment")
     Map<String, Object> completePayment(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, Object> payload
     );
 }

@@ -1,7 +1,7 @@
 const state = {
   tableId: null,
   tableKey: null,
-  deviceSession: null,   // lưu để dùng cho watchdog, không cần gọi lại getDeviceSession() nhiều lần
+  deviceSession: null,   // lÄ‚â€ Ă‚Â°u Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă†â€™ dĂ„â€Ă‚Â¹ng cho watchdog, khĂ„â€Ă‚Â´ng cÄ‚Â¡Ă‚ÂºĂ‚Â§n gÄ‚Â¡Ă‚Â»Ă‚Âi lÄ‚Â¡Ă‚ÂºĂ‚Â¡i getDeviceSession() nhiÄ‚Â¡Ă‚Â»Ă‚Âu lÄ‚Â¡Ă‚ÂºĂ‚Â§n
   table: null,
   menuCategories: [],
   buffetFoodCategories: [],
@@ -19,6 +19,9 @@ const state = {
   modalQuantity: 1,
   socket: null,
   itemStatuses: {},
+  paymentMethod: 'cash',
+  sepayPollingTimer: null,
+  sepayTransactionRef: null,
 };
 
 const recentToasts = new Map();
@@ -33,13 +36,13 @@ function formatCurrency(amount) {
 }
 
 function formatTime(value) {
-  if (!value) return '—';
+  if (!value) return 'Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â';
   const date = new Date(value);
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDateTime(value) {
-  if (!value) return '—';
+  if (!value) return 'Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â';
   const date = new Date(value);
   return date.toLocaleString('vi-VN', {
     hour: '2-digit',
@@ -82,7 +85,7 @@ async function fetchJson(url, options = {}) {
   const data = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const message = data?.message || 'Có lỗi xảy ra';
+    const message = data?.message || 'CĂ„â€Ă‚Â³ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i xÄ‚Â¡Ă‚ÂºĂ‚Â£y ra';
     throw new Error(message);
   }
 
@@ -134,12 +137,12 @@ function findBuffetFoodById(foodId) {
 function getPaymentStatusText(status) {
   switch (status) {
     case 'paid':
-      return 'Đã thanh toán';
+      return 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thanh toĂ„â€Ă‚Â¡n';
     case 'pending':
     case 'waiting':
-      return 'Đang chờ thanh toán';
+      return 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚Â»Ă‚Â thanh toĂ„â€Ă‚Â¡n';
     default:
-      return 'Chưa thanh toán';
+      return 'ChÄ‚â€ Ă‚Â°a thanh toĂ„â€Ă‚Â¡n';
   }
 }
 
@@ -175,23 +178,23 @@ function getRequestPaymentOrderId() {
 }
 
 function normalizeOrderStatus(status) {
-  if (status === 'Đã thanh toán') return 'Hoàn thành';
-  if (status === 'Đang nấu') return 'Đang chế biến';
+  if (status === 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thanh toĂ„â€Ă‚Â¡n') return 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh';
+  if (status === 'Ä‚â€Ă‚Âang nÄ‚Â¡Ă‚ÂºĂ‚Â¥u') return 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n';
   return status;
 }
 
 function getOrderStatusClass(status) {
   const normalizedStatus = normalizeOrderStatus(status);
   switch (normalizedStatus) {
-    case 'Hoàn thành':
+    case 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh':
       return 'served';
-    case 'Đang chế biến':
+    case 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
       return 'preparing';
-    case 'Yêu cầu thanh toán':
-    case 'Chờ xác nhận':
-    case 'Chờ chế biến':
+    case 'YĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u thanh toĂ„â€Ă‚Â¡n':
+    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n':
+    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
       return 'pending';
-    case 'Đã hủy':
+    case 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚Â»Ă‚Â§y':
       return 'cancelled';
     default:
       return 'pending';
@@ -200,12 +203,12 @@ function getOrderStatusClass(status) {
 
 function getItemStatusText(status) {
   switch (status) {
-    case 'Đang chế biến':
-      return 'Đang nấu';
-    case 'Hoàn thành':
-      return 'Đã xong';
-    case 'Chờ chế biến':
-      return 'Chờ bếp';
+    case 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
+      return 'Ä‚â€Ă‚Âang nÄ‚Â¡Ă‚ÂºĂ‚Â¥u';
+    case 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh':
+      return 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ xong';
+    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
+      return 'ChÄ‚Â¡Ă‚Â»Ă‚Â bÄ‚Â¡Ă‚ÂºĂ‚Â¿p';
     default:
       return status || '';
   }
@@ -218,11 +221,11 @@ function updateHeader() {
   if (!statusText) return;
 
   if (state.isBuffetActive && state.selectedBuffetPackage?.name) {
-    statusText.textContent = 'Buffet đang hoạt động';
+    statusText.textContent = 'Buffet Ä‚â€Ă¢â‚¬Ëœang hoÄ‚Â¡Ă‚ÂºĂ‚Â¡t Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng';
   } else if (state.summary?.total_orders > 0) {
     statusText.textContent = getPaymentStatusText(getCurrentSessionPaymentStatus());
   } else {
-    statusText.textContent = state.table?.status || 'Sẵn sàng';
+    statusText.textContent = state.table?.status || 'SÄ‚Â¡Ă‚ÂºĂ‚Âµn sĂ„â€Ă‚Â ng';
   }
 }
 
@@ -231,7 +234,7 @@ function updateBuffetBanner() {
   const packageName = document.getElementById('buffet-package-name');
 
   if (state.isBuffetActive) {
-    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet đang hoạt động';
+    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet Ä‚â€Ă¢â‚¬Ëœang hoÄ‚Â¡Ă‚ÂºĂ‚Â¡t Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng';
     banner.classList.remove('hidden');
   } else {
     banner.classList.add('hidden');
@@ -251,8 +254,8 @@ function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.className = 'toast';
   const iconMap = {
-    success: '✓',
-    error: '✕',
+    success: 'Ä‚Â¢Ă…â€œĂ¢â‚¬Å“',
+    error: 'Ä‚Â¢Ă…â€œĂ¢â‚¬Â¢',
     info: 'i',
   };
   toast.innerHTML = `
@@ -282,7 +285,7 @@ function renderCategories() {
   const container = document.getElementById('categories-list');
   if (!container) return;
 
-  const categories = [{ id: 'all', name: 'Tất cả' }, ...state.menuCategories.map((category) => ({
+  const categories = [{ id: 'all', name: 'TÄ‚Â¡Ă‚ÂºĂ‚Â¥t cÄ‚Â¡Ă‚ÂºĂ‚Â£' }, ...state.menuCategories.map((category) => ({
     id: String(category.id),
     name: category.name,
   }))];
@@ -297,8 +300,8 @@ function renderCategories() {
 function renderMenuItem(food, isBuffet = false) {
   const imageUrl = getImageUrl(food.image_url);
   const imageHtml = imageUrl
-    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\'menu-item-image-placeholder\'>📷</div>'">`
-    : `<div class="menu-item-image-placeholder">📷</div>`;
+    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\'menu-item-image-placeholder\'>Ă„â€˜Ă…Â¸Ă¢â‚¬Å“Ă‚Â·</div>'">`
+    : `<div class="menu-item-image-placeholder">Ă„â€˜Ă…Â¸Ă¢â‚¬Å“Ă‚Â·</div>`;
 
   return `
     <div class="menu-item-card" onclick="openFoodModal('${String(food.id)}', ${isBuffet})">
@@ -306,7 +309,7 @@ function renderMenuItem(food, isBuffet = false) {
       <div class="menu-item-info">
         <h4 class="menu-item-name">${food.name}</h4>
         ${food.category_name ? `<p class="menu-item-desc">${food.category_name}</p>` : ''}
-        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price)}</p>
+        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIÄ‚Â¡Ă‚Â»Ă¢â‚¬ÂN PHĂ„â€Ă‚Â' : formatCurrency(food.price)}</p>
       </div>
     </div>
   `;
@@ -327,7 +330,7 @@ function renderMenuItems() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">Không tìm thấy món</p><p class="empty-desc">Thử từ khóa khác</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">KhĂ„â€Ă‚Â´ng tĂ„â€Ă‚Â¬m thÄ‚Â¡Ă‚ÂºĂ‚Â¥y mĂ„â€Ă‚Â³n</p><p class="empty-desc">ThÄ‚Â¡Ă‚Â»Ă‚Â­ tÄ‚Â¡Ă‚Â»Ă‚Â« khĂ„â€Ă‚Â³a khĂ„â€Ă‚Â¡c</p></div>';
     return;
   }
 
@@ -347,19 +350,19 @@ function renderBuffetPackages() {
 
   container.innerHTML = state.buffetPackages.map((pkg) => `
     <div class="buffet-package-card ${pkg.popular ? 'popular' : ''}">
-      ${pkg.popular ? '<span class="buffet-package-badge">Phổ biến</span>' : ''}
+      ${pkg.popular ? '<span class="buffet-package-badge">PhÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¢ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n</span>' : ''}
       <div class="buffet-package-header">
         <h3 class="buffet-package-name">${pkg.name}</h3>
         <p class="buffet-package-desc">${pkg.description}</p>
       </div>
       <div class="buffet-package-price">
         <span class="buffet-package-amount">${formatCurrency(pkg.price)}</span>
-        <span class="buffet-package-unit">/ người</span>
+        <span class="buffet-package-unit">/ ngÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âi</span>
       </div>
       <ul class="buffet-package-features">
         ${(pkg.features || []).map((feature) => `<li>${feature}</li>`).join('')}
       </ul>
-      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">Chọn gói này</button>
+      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">ChÄ‚Â¡Ă‚Â»Ă‚Ân gĂ„â€Ă‚Â³i nĂ„â€Ă‚Â y</button>
     </div>
   `).join('');
 }
@@ -375,7 +378,7 @@ function renderBuffetMenu() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">Không tìm thấy món buffet</p><p class="empty-desc">Thử từ khóa khác</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">KhĂ„â€Ă‚Â´ng tĂ„â€Ă‚Â¬m thÄ‚Â¡Ă‚ÂºĂ‚Â¥y mĂ„â€Ă‚Â³n buffet</p><p class="empty-desc">ThÄ‚Â¡Ă‚Â»Ă‚Â­ tÄ‚Â¡Ă‚Â»Ă‚Â« khĂ„â€Ă‚Â³a khĂ„â€Ă‚Â¡c</p></div>';
     return;
   }
 
@@ -432,7 +435,7 @@ function renderCart() {
         <p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>
       </div>
       <div class="cart-item-actions">
-        <button class="cart-item-remove" onclick="removeFromCart(${index})">🗑</button>
+        <button class="cart-item-remove" onclick="removeFromCart(${index})">Ă„â€˜Ă…Â¸Ă¢â‚¬â€Ă¢â‚¬Ëœ</button>
         <div class="quantity-selector">
           <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
           <span class="quantity-value">${item.quantity}</span>
@@ -484,10 +487,10 @@ function renderOrders() {
     <div class="order-card">
       <div class="order-card-header">
         <div class="order-card-info">
-          <span class="order-id">Đơn #${order.id}</span>
+          <span class="order-id">Ä‚â€Ă‚ÂÄ‚â€ Ă‚Â¡n #${order.id}</span>
           <span class="order-time">${formatDateTime(order.order_time)}</span>
         </div>
-        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Đang xử lý'}</span>
+        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Ä‚â€Ă‚Âang xÄ‚Â¡Ă‚Â»Ă‚Â­ lĂ„â€Ă‚Â½'}</span>
       </div>
       <div class="order-items-list">
         ${(order.details || []).map((item) => `
@@ -496,7 +499,7 @@ function renderOrders() {
               <span class="order-item-qty">${item.quantity}x</span>
               <div class="order-item-meta">
                 <span class="order-item-name">${item.food_name || 'N/A'}</span>
-                ${state.itemStatuses[item.id]?.status ? `<span class="order-item-status ${state.itemStatuses[item.id].status === 'Hoàn thành' ? 'delivered' : ''}">${getItemStatusText(state.itemStatuses[item.id].status)}</span>` : ''}
+                ${state.itemStatuses[item.id]?.status ? `<span class="order-item-status ${state.itemStatuses[item.id].status === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh' ? 'delivered' : ''}">${getItemStatusText(state.itemStatuses[item.id].status)}</span>` : ''}
               </div>
             </div>
             <span class="order-item-price">${formatCurrency((item.price || 0) * (item.quantity || 0))}</span>
@@ -504,7 +507,7 @@ function renderOrders() {
         `).join('')}
       </div>
       <div class="order-card-footer">
-        <span class="order-total-label">Thành tiền</span>
+        <span class="order-total-label">ThĂ„â€Ă‚Â nh tiÄ‚Â¡Ă‚Â»Ă‚Ân</span>
         <span class="order-total-amount">${formatCurrency(order.total)}</span>
       </div>
     </div>
@@ -588,10 +591,10 @@ function openFoodModal(foodId, isBuffet = false) {
   imageContainer.style.display = imageUrl ? 'block' : 'none';
 
   document.getElementById('food-modal-name').textContent = food.name;
-  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Món buffet' : 'Món ăn');
-  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price);
+  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'MĂ„â€Ă‚Â³n buffet' : 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n');
+  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIÄ‚Â¡Ă‚Â»Ă¢â‚¬ÂN PHĂ„â€Ă‚Â' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
-  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi món' : 'Thêm vào giỏ';
+  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'GÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n' : 'ThĂ„â€Ă‚Âªm vĂ„â€Ă‚Â o giÄ‚Â¡Ă‚Â»Ă‚Â';
 
   document.getElementById('food-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -630,14 +633,14 @@ function addToCart(food, quantity) {
     });
   }
   renderCart();
-  showToast(`Đã thêm ${food.name} vào giỏ hàng`);
+  showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thĂ„â€Ă‚Âªm ${food.name} vĂ„â€Ă‚Â o giÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng`);
 }
 
 function removeFromCart(index) {
   const item = state.cart[index];
   state.cart.splice(index, 1);
   renderCart();
-  showToast(`Đã xóa ${item.name} khỏi giỏ hàng`, 'info');
+  showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ xĂ„â€Ă‚Â³a ${item.name} khÄ‚Â¡Ă‚Â»Ă‚Âi giÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng`, 'info');
 }
 
 function updateCartQuantity(index, delta) {
@@ -665,11 +668,11 @@ async function addToCartFromModal() {
           buffet_package_name: state.selectedBuffetPackage?.name || null,
         }),
       });
-      showToast(`Đã gọi ${state.modalFood.name}`);
+      showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ gÄ‚Â¡Ă‚Â»Ă‚Âi ${state.modalFood.name}`);
       closeFoodModal();
       await refreshOrders();
     } catch (error) {
-      showToast(error.message || 'Không thể gọi món buffet', 'error');
+      showToast(error.message || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n buffet', 'error');
     }
     return;
   }
@@ -680,7 +683,7 @@ async function addToCartFromModal() {
 
 async function placeOrder() {
   if (state.cart.length === 0) {
-    showToast('Giỏ hàng trống', 'error');
+    showToast('GiÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng trÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœng', 'error');
     return;
   }
 
@@ -696,10 +699,10 @@ async function placeOrder() {
     state.cart = [];
     renderCart();
     await refreshOrders();
-    showToast('Đặt món thành công');
+    showToast('Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t mĂ„â€Ă‚Â³n thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'Đặt món thất bại', 'error');
+    showToast(error.message || 'Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t mĂ„â€Ă‚Â³n thÄ‚Â¡Ă‚ÂºĂ‚Â¥t bÄ‚Â¡Ă‚ÂºĂ‚Â¡i', 'error');
   }
 }
 
@@ -708,8 +711,8 @@ function selectBuffetPackage(packageId) {
   if (!pkg) return;
   state.selectedBuffetPackage = pkg;
   document.getElementById('buffet-confirm-details').innerHTML = `
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Gói buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Giá / người</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
+    <div class="buffet-confirm-row"><span class="buffet-confirm-label">GĂ„â€Ă‚Â³i buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
+    <div class="buffet-confirm-row"><span class="buffet-confirm-label">GiĂ„â€Ă‚Â¡ / ngÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âi</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
   `;
   document.getElementById('buffet-confirm-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -741,46 +744,14 @@ async function confirmBuffetOrder() {
     state.isBuffetActive = false;
     closeBuffetConfirmModal();
     await refreshOrders();
-    showToast('Đã gửi yêu cầu buffet, chờ nhà hàng xác nhận.');
+    showToast('Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ gÄ‚Â¡Ă‚Â»Ă‚Â­i yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u buffet, chÄ‚Â¡Ă‚Â»Ă‚Â nhĂ„â€Ă‚Â  hĂ„â€Ă‚Â ng xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n.');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'Không thể đặt buffet', 'error');
+    showToast(error.message || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚ÂºĂ‚Â·t buffet', 'error');
   }
 }
 
-function openPaymentModal() {
-  const totalAmount = state.summary?.total_amount || 0;
-  document.getElementById('payment-total').textContent = formatCurrency(totalAmount);
-  document.getElementById('payment-modal').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-}
-
-function closePaymentModal() {
-  document.getElementById('payment-modal').classList.add('hidden');
-  document.body.style.overflow = '';
-}
-
-async function submitPaymentRequest() {
-  const requestOrderId = getRequestPaymentOrderId();
-  if (!requestOrderId) {
-    showToast('Chưa có đơn hàng để thanh toán', 'error');
-    return;
-  }
-
-  try {
-    await fetchJson(`/api/orders/${requestOrderId}/request-payment`, {
-      method: 'POST',
-      body: JSON.stringify({ table_key: state.tableKey }),
-    });
-    closePaymentModal();
-    await refreshOrders();
-    showToast('Đã gửi yêu cầu thanh toán');
-  } catch (error) {
-    showToast(error.message || 'Không thể gửi yêu cầu thanh toán', 'error');
-  }
-}
-
-async function loadTable() {
+async function loadTable( {
   state.table = await fetchJson(`/api/tables/${state.tableId}`);
 }
 
@@ -815,9 +786,9 @@ async function loadBuffetPackages() {
   // Buffet packages endpoint not migrated to microservices yet
   try {
       const res = await fetchJson('/api/menu/buffet-packages');
-      state.buffetPackages = res?.length ? res : [{ id: 1, name: "Buffet Tiêu Chuẩn (Chưa cấu hình CSDL)", price: 299000 }];
+      state.buffetPackages = res?.length ? res : [{ id: 1, name: "Buffet TiĂ„â€Ă‚Âªu ChuÄ‚Â¡Ă‚ÂºĂ‚Â©n (ChÄ‚â€ Ă‚Â°a cÄ‚Â¡Ă‚ÂºĂ‚Â¥u hĂ„â€Ă‚Â¬nh CSDL)", price: 299000 }];
   } catch (e) {
-      state.buffetPackages = [{ id: 1, name: "Buffet Tiêu Chuẩn (Lỗi mạng)", price: 299000 }];
+      state.buffetPackages = [{ id: 1, name: "Buffet TiĂ„â€Ă‚Âªu ChuÄ‚Â¡Ă‚ÂºĂ‚Â©n (LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng)", price: 299000 }];
   }
 }
 
@@ -831,7 +802,7 @@ async function refreshOrders() {
   state.summary = summary && summary.total_orders > 0 ? summary : null;
 
   const buffetOrder = state.orders.find(
-    (order) => order.is_buffet && order.payment_status !== 'paid' && order.status !== 'Chờ xác nhận'
+    (order) => order.is_buffet && order.payment_status !== 'paid' && order.status !== 'ChÄ‚Â¡Ă‚Â»Ă‚Â xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n'
   );
   state.isBuffetActive = Boolean(summary?.buffet_active || buffetOrder);
 
@@ -880,30 +851,30 @@ function initializeSocket() {
         const data = payload.data || {};
         
         if (event === 'order_created') {
-          showToast('Đơn hàng đã được tạo', 'info');
+          showToast('Ä‚â€Ă‚ÂÄ‚â€ Ă‚Â¡n hĂ„â€Ă‚Â ng Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c tÄ‚Â¡Ă‚ÂºĂ‚Â¡o', 'info');
           await refreshOrders();
         } else if (event === 'buffet_order_created') {
-          showToast('Đặt buffet thành công', 'success');
+          showToast('Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t buffet thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng', 'success');
           await refreshOrders();
         } else if (event === 'buffet_food_added') {
-          showToast('Đã thêm món buffet', 'info');
+          showToast('Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thĂ„â€Ă‚Âªm mĂ„â€Ă‚Â³n buffet', 'info');
           await refreshOrders();
         } else if (event === 'order_status_updated') {
           if (!shouldProcessSocketEvent('order_status_updated', [data.order_id, data.status, data.payment_status])) return;
           const normalizedStatus = normalizeOrderStatus(data.status);
-          if (normalizedStatus === 'Hoàn thành') {
-            showToast('Món ăn đã được phục vụ', 'success');
+          if (normalizedStatus === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh') {
+            showToast('MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c phÄ‚Â¡Ă‚Â»Ă‚Â¥c vÄ‚Â¡Ă‚Â»Ă‚Â¥', 'success');
           } else if (data.payment_status === 'waiting') {
-            showToast('Thu ngân đã nhận yêu cầu thanh toán', 'info');
+            showToast('Thu ngĂ„â€Ă‚Â¢n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ nhÄ‚Â¡Ă‚ÂºĂ‚Â­n yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u thanh toĂ„â€Ă‚Â¡n', 'info');
           }
           await refreshOrders();
         } else if (event === 'payment_completed') {
           if (!shouldProcessSocketEvent('payment_completed', [data.request_id, data.order_id, data.table_id, data.amount])) return;
-          showToast('Thanh toán hoàn tất. Cảm ơn quý khách!', 'success');
+          showToast('Thanh toĂ„â€Ă‚Â¡n hoĂ„â€Ă‚Â n tÄ‚Â¡Ă‚ÂºĂ‚Â¥t. CÄ‚Â¡Ă‚ÂºĂ‚Â£m Ä‚â€ Ă‚Â¡n quĂ„â€Ă‚Â½ khĂ„â€Ă‚Â¡ch!', 'success');
           await refreshOrders();
         }
       } catch (e) {
-        console.error('Lỗi khi parse message order:', e);
+        console.error('LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i khi parse message order:', e);
       }
     });
   });
@@ -925,17 +896,17 @@ function initializeSocket() {
 
         if (!shouldProcessSocketEvent('order_item_status', [data.order_detail_id, data.status, data.updated_at])) return;
 
-        if (data.status === 'Đang chế biến') {
-          showToast(`${data.food_name || 'Món ăn'} đang được bếp chuẩn bị`, 'info');
-        } else if (data.status === 'Hoàn thành') {
-          showToast(`${data.food_name || 'Món ăn'} đã sẵn sàng phục vụ`, 'success');
+        if (data.status === 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n') {
+          showToast(`${data.food_name || 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n'} Ä‚â€Ă¢â‚¬Ëœang Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c bÄ‚Â¡Ă‚ÂºĂ‚Â¿p chuÄ‚Â¡Ă‚ÂºĂ‚Â©n bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹`, 'info');
+        } else if (data.status === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh') {
+          showToast(`${data.food_name || 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n'} Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ sÄ‚Â¡Ă‚ÂºĂ‚Âµn sĂ„â€Ă‚Â ng phÄ‚Â¡Ă‚Â»Ă‚Â¥c vÄ‚Â¡Ă‚Â»Ă‚Â¥`, 'success');
         }
 
         if (state.currentTab === 'orders') {
           renderOrders();
         }
       } catch (e) {
-        console.error('Lỗi khi parse message kitchen item status:', e);
+        console.error('LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i khi parse message kitchen item status:', e);
       }
     });
   });
@@ -946,7 +917,7 @@ async function initApp() {
   state.tableId = params.tableId;
   state.tableKey = params.tableKey;
 
-  // Xử lý trường hợp static QR generate-access bị lỗi (VD: bàn đang có reservation sắp tới)
+  // XÄ‚Â¡Ă‚Â»Ă‚Â­ lĂ„â€Ă‚Â½ trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âng hÄ‚Â¡Ă‚Â»Ă‚Â£p static QR generate-access bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i (VD: bĂ„â€Ă‚Â n Ä‚â€Ă¢â‚¬Ëœang cĂ„â€Ă‚Â³ reservation sÄ‚Â¡Ă‚ÂºĂ‚Â¯p tÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi)
   const accessError = new URLSearchParams(window.location.search).get('qr_access_error');
   if (accessError) {
     showInitError('access_blocked', decodeURIComponent(accessError));
@@ -959,11 +930,11 @@ async function initApp() {
     return;
   }
 
-  // Gắn deviceSession vào state một lần duy nhất
+  // GÄ‚Â¡Ă‚ÂºĂ‚Â¯n deviceSession vĂ„â€Ă‚Â o state mÄ‚Â¡Ă‚Â»Ă¢â€Â¢t lÄ‚Â¡Ă‚ÂºĂ‚Â§n duy nhÄ‚Â¡Ă‚ÂºĂ‚Â¥t
   state.deviceSession = getDeviceSession();
 
   try {
-    // --- Validate key bằng POST (key không lộ trong URL/logs) ---
+    // --- Validate key bÄ‚Â¡Ă‚ÂºĂ‚Â±ng POST (key khĂ„â€Ă‚Â´ng lÄ‚Â¡Ă‚Â»Ă¢â€Â¢ trong URL/logs) ---
     const sessionResult = await fetchJson(`/api/tables/${state.tableId}/validate-key`, {
       method: 'POST',
       body: JSON.stringify({
@@ -987,11 +958,11 @@ async function initApp() {
 
     initializeSocket();
 
-    // Ẩn loading, hiện app
+    // Ä‚Â¡Ă‚ÂºĂ‚Â¨n loading, hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n app
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    // Khởi động watchdog — phát hiện key expire / staff invalidate giữa phiên
+    // KhÄ‚Â¡Ă‚Â»Ă…Â¸i Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng watchdog Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â phĂ„â€Ă‚Â¡t hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n key expire / staff invalidate giÄ‚Â¡Ă‚Â»Ă‚Â¯a phiĂ„â€Ă‚Âªn
     startSessionWatchdog(sessionResult.seconds_remaining);
 
     console.log('App initialized successfully for table', state.tableId);
@@ -999,27 +970,27 @@ async function initApp() {
     console.error('Initialization error:', error);
     const loadingContent = document.querySelector('.loading-content');
     if (loadingContent) {
-      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">Không thể kết nối.<br>${error.message || 'Vui lòng thử lại.'}</p>`;
+      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi.<br>${error.message || 'Vui lĂ„â€Ă‚Â²ng thÄ‚Â¡Ă‚Â»Ă‚Â­ lÄ‚Â¡Ă‚ÂºĂ‚Â¡i.'}</p>`;
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
 // Session lifecycle helpers
-// ─────────────────────────────────────────────────────────────
+// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
 
 /**
- * showInitError — hiển thị lỗi trên màn hình loading (trước khi app hiện).
- * @param {string} reason   – "not_found" | "expired" | "taken" | "access_blocked" | "missing_key"
- * @param {string} [detail] – thông tin thêm cho một số lỗi
+ * showInitError Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â hiÄ‚Â¡Ă‚Â»Ă†â€™n thÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i trĂ„â€Ă‚Âªn mĂ„â€Ă‚Â n hĂ„â€Ă‚Â¬nh loading (trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă¢â‚¬Âºc khi app hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n).
+ * @param {string} reason   Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ "not_found" | "expired" | "taken" | "access_blocked" | "missing_key"
+ * @param {string} [detail] Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ thĂ„â€Ă‚Â´ng tin thĂ„â€Ă‚Âªm cho mÄ‚Â¡Ă‚Â»Ă¢â€Â¢t sÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i
  */
 function showInitError(reason, detail) {
   const messages = {
-    expired:        'Link QR đã hết hạn.<br>Vui lòng yêu cầu mã QR mới từ nhân viên.',
-    taken:          'Mã QR này đang được sử dụng trên thiết bị khác.<br>Vui lòng liên hệ nhân viên.',
-    not_found:      'Link QR không hợp lệ.<br>Vui lòng quét lại mã QR.',
-    missing_key:    'Link QR thiếu thông tin.<br>Vui lòng quét lại mã QR.',
-    access_blocked: detail || 'Không thể mở phiên gọi món.<br>Vui lòng liên hệ nhân viên.',
+    expired:        'Link QR Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚ÂºĂ‚Â¿t hÄ‚Â¡Ă‚ÂºĂ‚Â¡n.<br>Vui lĂ„â€Ă‚Â²ng yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u mĂ„â€Ă‚Â£ QR mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi tÄ‚Â¡Ă‚Â»Ă‚Â« nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
+    taken:          'MĂ„â€Ă‚Â£ QR nĂ„â€Ă‚Â y Ä‚â€Ă¢â‚¬Ëœang Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c sÄ‚Â¡Ă‚Â»Ă‚Â­ dÄ‚Â¡Ă‚Â»Ă‚Â¥ng trĂ„â€Ă‚Âªn thiÄ‚Â¡Ă‚ÂºĂ‚Â¿t bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ khĂ„â€Ă‚Â¡c.<br>Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
+    not_found:      'Link QR khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡.<br>Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i mĂ„â€Ă‚Â£ QR.',
+    missing_key:    'Link QR thiÄ‚Â¡Ă‚ÂºĂ‚Â¿u thĂ„â€Ă‚Â´ng tin.<br>Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i mĂ„â€Ă‚Â£ QR.',
+    access_blocked: detail || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ mÄ‚Â¡Ă‚Â»Ă…Â¸ phiĂ„â€Ă‚Âªn gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n.<br>Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
   };
   const text = messages[reason] || messages.not_found;
   const loadingContent = document.querySelector('.loading-content');
@@ -1029,17 +1000,17 @@ function showInitError(reason, detail) {
 }
 
 /**
- * startSessionWatchdog — poll validate-key mỗi 60 giây.
- * Nếu phát hiện session không còn hợp lệ (hết giờ hoặc staff invalidate),
- * hiện overlay "phiên đã kết thúc" và dừng polling.
- * Lỗi mạng tạm thời KHÔNG kill session (chống mất kết nối WiFi ngắn).
+ * startSessionWatchdog Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â poll validate-key mÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i 60 giĂ„â€Ă‚Â¢y.
+ * NÄ‚Â¡Ă‚ÂºĂ‚Â¿u phĂ„â€Ă‚Â¡t hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n session khĂ„â€Ă‚Â´ng cĂ„â€Ă‚Â²n hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ (hÄ‚Â¡Ă‚ÂºĂ‚Â¿t giÄ‚Â¡Ă‚Â»Ă‚Â hoÄ‚Â¡Ă‚ÂºĂ‚Â·c staff invalidate),
+ * hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n overlay "phiĂ„â€Ă‚Âªn Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t thĂ„â€Ă‚Âºc" vĂ„â€Ă‚Â  dÄ‚Â¡Ă‚Â»Ă‚Â«ng polling.
+ * LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng tÄ‚Â¡Ă‚ÂºĂ‚Â¡m thÄ‚Â¡Ă‚Â»Ă‚Âi KHĂ„â€Ă¢â‚¬ÂNG kill session (chÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœng mÄ‚Â¡Ă‚ÂºĂ‚Â¥t kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi WiFi ngÄ‚Â¡Ă‚ÂºĂ‚Â¯n).
  *
- * @param {number} initialSeconds – giây còn lại khi mới vào app (từ validate-key response)
+ * @param {number} initialSeconds Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ giĂ„â€Ă‚Â¢y cĂ„â€Ă‚Â²n lÄ‚Â¡Ă‚ÂºĂ‚Â¡i khi mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi vĂ„â€Ă‚Â o app (tÄ‚Â¡Ă‚Â»Ă‚Â« validate-key response)
  */
 let _watchdogTimer = null;
 let _watchdogNetErrStreak = 0;
-const WATCHDOG_INTERVAL_MS      = 60_000;   // polling mỗi 60s
-const WATCHDOG_NET_ERR_TOLERANCE = 3;        // chịu tối đa 3 lỗi mạng liên tiếp (~3 phút)
+const WATCHDOG_INTERVAL_MS      = 60_000;   // polling mÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i 60s
+const WATCHDOG_NET_ERR_TOLERANCE = 3;        // chÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹u tÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi Ä‚â€Ă¢â‚¬Ëœa 3 lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng liĂ„â€Ă‚Âªn tiÄ‚Â¡Ă‚ÂºĂ‚Â¿p (~3 phĂ„â€Ă‚Âºt)
 
 function startSessionWatchdog(initialSeconds) {
   if (_watchdogTimer) clearInterval(_watchdogTimer);
@@ -1055,7 +1026,7 @@ function startSessionWatchdog(initialSeconds) {
         }),
       });
 
-      _watchdogNetErrStreak = 0;  // reset khi thành công
+      _watchdogNetErrStreak = 0;  // reset khi thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng
 
       if (!result.valid) {
         clearInterval(_watchdogTimer);
@@ -1063,7 +1034,7 @@ function startSessionWatchdog(initialSeconds) {
         showSessionEnded(result.reason);
       }
     } catch (e) {
-      // Lỗi mạng (wifi mất tạm, server restart...) — không kill session ngay
+      // LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng (wifi mÄ‚Â¡Ă‚ÂºĂ‚Â¥t tÄ‚Â¡Ă‚ÂºĂ‚Â¡m, server restart...) Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â khĂ„â€Ă‚Â´ng kill session ngay
       _watchdogNetErrStreak++;
       console.warn(`[Watchdog] Network error (${_watchdogNetErrStreak}/${WATCHDOG_NET_ERR_TOLERANCE}):`, e.message);
 
@@ -1077,9 +1048,9 @@ function startSessionWatchdog(initialSeconds) {
 }
 
 /**
- * showSessionEnded — hiện overlay toàn màn hình khi phiên kết thúc giữa chừng.
- * Khác với showInitError vì app đã hiển thị rồi.
- * @param {string} reason – "expired" | "taken" | "not_found" | "network_error"
+ * showSessionEnded Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n overlay toĂ„â€Ă‚Â n mĂ„â€Ă‚Â n hĂ„â€Ă‚Â¬nh khi phiĂ„â€Ă‚Âªn kÄ‚Â¡Ă‚ÂºĂ‚Â¿t thĂ„â€Ă‚Âºc giÄ‚Â¡Ă‚Â»Ă‚Â¯a chÄ‚Â¡Ă‚Â»Ă‚Â«ng.
+ * KhĂ„â€Ă‚Â¡c vÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi showInitError vĂ„â€Ă‚Â¬ app Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ hiÄ‚Â¡Ă‚Â»Ă†â€™n thÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ rÄ‚Â¡Ă‚Â»Ă¢â‚¬Å“i.
+ * @param {string} reason Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ "expired" | "taken" | "not_found" | "network_error"
  */
 function showSessionEnded(reason) {
   if (_watchdogTimer) {
@@ -1088,14 +1059,14 @@ function showSessionEnded(reason) {
   }
 
   const messages = {
-    expired:       { title: 'Phiên đã kết thúc',       desc: 'Thời gian sử dụng bàn đã hết. Cảm ơn quý khách đã đến Aurora!' },
-    taken:         { title: 'Phiên bị thay thế',        desc: 'Phiên mới vừa được mở trên thiết bị khác. Vui lòng quét lại QR để tiếp tục.' },
-    not_found:     { title: 'Phiên không hợp lệ',       desc: 'Phiên gọi món đã bị đóng. Vui lòng liên hệ nhân viên nếu cần hỗ trợ.' },
-    network_error: { title: 'Mất kết nối',              desc: 'Không thể xác minh phiên sau nhiều lần thử. Vui lòng kiểm tra wifi và tải lại trang.' },
+    expired:       { title: 'PhiĂ„â€Ă‚Âªn Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t thĂ„â€Ă‚Âºc',       desc: 'ThÄ‚Â¡Ă‚Â»Ă‚Âi gian sÄ‚Â¡Ă‚Â»Ă‚Â­ dÄ‚Â¡Ă‚Â»Ă‚Â¥ng bĂ„â€Ă‚Â n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚ÂºĂ‚Â¿t. CÄ‚Â¡Ă‚ÂºĂ‚Â£m Ä‚â€ Ă‚Â¡n quĂ„â€Ă‚Â½ khĂ„â€Ă‚Â¡ch Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚ÂºĂ‚Â¿n Aurora!' },
+    taken:         { title: 'PhiĂ„â€Ă‚Âªn bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ thay thÄ‚Â¡Ă‚ÂºĂ‚Â¿',        desc: 'PhiĂ„â€Ă‚Âªn mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi vÄ‚Â¡Ă‚Â»Ă‚Â«a Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c mÄ‚Â¡Ă‚Â»Ă…Â¸ trĂ„â€Ă‚Âªn thiÄ‚Â¡Ă‚ÂºĂ‚Â¿t bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ khĂ„â€Ă‚Â¡c. Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i QR Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă†â€™ tiÄ‚Â¡Ă‚ÂºĂ‚Â¿p tÄ‚Â¡Ă‚Â»Ă‚Â¥c.' },
+    not_found:     { title: 'PhiĂ„â€Ă‚Âªn khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡',       desc: 'PhiĂ„â€Ă‚Âªn gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â³ng. Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn nÄ‚Â¡Ă‚ÂºĂ‚Â¿u cÄ‚Â¡Ă‚ÂºĂ‚Â§n hÄ‚Â¡Ă‚Â»Ă¢â‚¬â€ trÄ‚Â¡Ă‚Â»Ă‚Â£.' },
+    network_error: { title: 'MÄ‚Â¡Ă‚ÂºĂ‚Â¥t kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi',              desc: 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ xĂ„â€Ă‚Â¡c minh phiĂ„â€Ă‚Âªn sau nhiÄ‚Â¡Ă‚Â»Ă‚Âu lÄ‚Â¡Ă‚ÂºĂ‚Â§n thÄ‚Â¡Ă‚Â»Ă‚Â­. Vui lĂ„â€Ă‚Â²ng kiÄ‚Â¡Ă‚Â»Ă†â€™m tra wifi vĂ„â€Ă‚Â  tÄ‚Â¡Ă‚ÂºĂ‚Â£i lÄ‚Â¡Ă‚ÂºĂ‚Â¡i trang.' },
   };
   const msg = messages[reason] || messages.not_found;
 
-  // Xóa overlay cũ nếu có (trường hợp gọi 2 lần)
+  // XĂ„â€Ă‚Â³a overlay cÄ‚â€¦Ă‚Â© nÄ‚Â¡Ă‚ÂºĂ‚Â¿u cĂ„â€Ă‚Â³ (trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âng hÄ‚Â¡Ă‚Â»Ă‚Â£p gÄ‚Â¡Ă‚Â»Ă‚Âi 2 lÄ‚Â¡Ă‚ÂºĂ‚Â§n)
   document.getElementById('session-ended-overlay')?.remove();
 
   const overlay = document.createElement('div');
@@ -1114,13 +1085,146 @@ function showSessionEnded(reason) {
     'backdrop-filter:blur(4px)',
   ].join(';');
   overlay.innerHTML = `
-    <div style="font-size:52px;margin-bottom:20px;">🔒</div>
+    <div style="font-size:52px;margin-bottom:20px;">Ă„â€˜Ă…Â¸Ă¢â‚¬ÂĂ¢â‚¬â„¢</div>
     <h2 style="color:#fff;font-size:20px;font-weight:600;margin-bottom:12px;">${msg.title}</h2>
     <p style="color:#999;font-size:15px;line-height:1.7;max-width:320px;">${msg.desc}</p>
   `;
   document.body.appendChild(overlay);
 }
 
-// ─────────────────────────────────────────────────────────────
+// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
 
 window.addEventListener('DOMContentLoaded', initApp);
+
+function openPaymentModal() {
+  const totalAmount = state.summary?.total_amount || 0;
+  document.getElementById('payment-total').textContent = formatCurrency(totalAmount);
+  state.paymentMethod = 'cash';
+  updatePaymentMethodUI();
+  document.getElementById('payment-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePaymentModal() {
+  document.getElementById('payment-modal').classList.add('hidden');
+  document.body.style.overflow = '';
+  if (state.sepayPollingTimer) {
+    clearInterval(state.sepayPollingTimer);
+    state.sepayPollingTimer = null;
+  }
+  state.sepayTransactionRef = null;
+}
+
+function setPaymentMethod(method) {
+  state.paymentMethod = method === 'sepay' ? 'sepay' : 'cash';
+  updatePaymentMethodUI();
+}
+
+function updatePaymentMethodUI() {
+  const qrSection = document.getElementById('sepay-qr-section');
+  const submitBtn = document.getElementById('payment-submit-btn');
+  const statusText = document.getElementById('sepay-status-text');
+  const qrContent = document.getElementById('sepay-qr-content');
+  const note = document.querySelector('.payment-modal-note');
+
+  if (!submitBtn || !note || !qrSection) return;
+
+  if (state.paymentMethod === 'sepay') {
+    submitBtn.textContent = 'Tạo mã SePay';
+    note.textContent = 'Khách có thể chuyển khoản trực tiếp bằng SePay và hệ thống sẽ tự cập nhật trạng thái.';
+    qrSection.classList.remove('hidden');
+    if (statusText && !statusText.textContent) {
+      statusText.textContent = 'Đang chờ tạo mã...';
+    }
+    if (qrContent && !qrContent.textContent) {
+      qrContent.textContent = 'Chưa có mã';
+    }
+  } else {
+    submitBtn.textContent = 'Gửi yêu cầu thanh toán';
+    note.textContent = 'Yêu cầu thanh toán sẽ được gửi đến thu ngân. Nhân viên sẽ đến bàn để hỗ trợ thanh toán.';
+    qrSection.classList.add('hidden');
+  }
+}
+
+async function submitPaymentRequest() {
+  const requestOrderId = getRequestPaymentOrderId();
+  if (!requestOrderId) {
+    showToast('Chưa có đơn hàng để thanh toán', 'error');
+    return;
+  }
+
+  if (state.paymentMethod === 'sepay') {
+    await submitSepayPayment(requestOrderId);
+    return;
+  }
+
+  try {
+    await fetchJson(`/api/orders/${requestOrderId}/request-payment`, {
+      method: 'POST',
+      body: JSON.stringify({ table_key: state.tableKey }),
+    });
+    closePaymentModal();
+    await refreshOrders();
+    showToast('Đã gửi yêu cầu thanh toán');
+  } catch (error) {
+    showToast(error.message || 'Không thể gửi yêu cầu thanh toán', 'error');
+  }
+}
+
+async function submitSepayPayment(orderId) {
+  const statusText = document.getElementById('sepay-status-text');
+  const qrContent = document.getElementById('sepay-qr-content');
+  const totalAmount = state.summary?.total_amount || 0;
+
+  try {
+    if (statusText) statusText.textContent = 'Đang tạo mã SePay...';
+    const result = await fetchJson('/api/payments/sepay/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        order_id: orderId,
+        table_id: Number(state.tableId),
+        table_key: state.tableKey,
+        amount: totalAmount,
+      }),
+    });
+
+    state.sepayTransactionRef = result.transaction_ref;
+    if (qrContent) {
+      qrContent.textContent = result.qr_content || result.pay_url || 'Mã QR đã tạo. Vui lòng dùng app ngân hàng/SePay để thanh toán.';
+    }
+    if (statusText) {
+      statusText.textContent = `Mã đã tạo - trạng thái: ${result.status || 'PENDING'}`;
+    }
+
+    if (state.sepayPollingTimer) {
+      clearInterval(state.sepayPollingTimer);
+      state.sepayPollingTimer = null;
+    }
+
+    state.sepayPollingTimer = setInterval(async () => {
+      if (!state.sepayTransactionRef) return;
+      try {
+        const statusRes = await fetchJson(`/api/payments/sepay/${encodeURIComponent(state.sepayTransactionRef)}/status`);
+        const status = (statusRes.status || '').toUpperCase();
+        if (statusText) statusText.textContent = `Trạng thái: ${status || 'PENDING'}`;
+
+        if (status === 'PAID') {
+          clearInterval(state.sepayPollingTimer);
+          state.sepayPollingTimer = null;
+          closePaymentModal();
+          await refreshOrders();
+          showToast('Thanh toán SePay thành công', 'success');
+        } else if (status === 'FAILED' || status === 'EXPIRED') {
+          clearInterval(state.sepayPollingTimer);
+          state.sepayPollingTimer = null;
+          showToast(`Thanh toán SePay ${status === 'FAILED' ? 'thất bại' : 'hết hạn'}`, 'error');
+        }
+      } catch (err) {
+        console.error('SePay status polling error', err);
+      }
+    }, 3000);
+  } catch (error) {
+    if (statusText) statusText.textContent = 'Không thể tạo mã SePay';
+    showToast(error.message || 'Không thể tạo thanh toán SePay', 'error');
+  }
+}

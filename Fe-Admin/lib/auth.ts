@@ -27,9 +27,9 @@ export const ALLOWED_ADMIN_ROLES = ["ADMIN", "MANAGER", "CASHIER", "KITCHEN"] as
 
 // Page paths each role can access.
 const ROLE_PAGE_ACCESS: Record<string, string[]> = {
-  ADMIN:   ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/staff", "/cashier", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
-  MANAGER: ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/cashier", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
-  CASHIER: ["/dashboard", "/orders", "/tables", "/cashier", "/reservations"],
+  ADMIN:   ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/staff", "/cashier", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
+  MANAGER: ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/cashier", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
+  CASHIER: ["/dashboard", "/orders", "/tables", "/cashier", "/payments", "/reservations"],
   KITCHEN: ["/kitchen", "/inventory", "/portioning"],
 };
 

@@ -18,6 +18,7 @@ Key decisions:
 - Chot muc doi soat admin SePay = muc 2 (theo doi + thao tac danh dau da xu ly hoan tien thu cong cho case webhook muon).
 - Chot rule van hanh: SePay chay song song voi cash (khong thay the cash flow hien tai).
 - Chon Approach A: mo rong `payment-service` theo provider-based (`cash` + `sepay`), khong tao microservice moi.
+- User chon thuc thi implementation ngay trong session chat hien tai.
 - TOSE docs da duoc doc lai (overview + CLI + API): project mo ta theo mo hinh 1 app/1 port.
 - Chot huong deploy: 1 project = 1 container.
 - Chot pham vi: deploy du 10 project (gateway + 8 services + Fe-Admin).
@@ -82,11 +83,19 @@ State:
     - User da approve toan bo design sections: Architecture, Data Flow, Error Handling, Testing cho SePay.
     - Da tao design doc `docs/plans/2026-04-08-sepay-integration-design.md` va commit `141b3f0`.
     - Da dung skill `writing-plans` va tao implementation plan `docs/plans/2026-04-08-sepay-integration-implementation-plan.md`.
+    - Da implement backend SePay trong `payment-service`: them model `PaymentTransaction`, provider layer (`SepayPaymentProvider`), signature verifier, webhook processing, status API, admin transaction APIs, scheduler expire/retry-sync.
+    - Da mo rong `payment-service` websocket events voi `payment.status` de phat trang thai giao dich online.
+    - Da cap nhat `JwtAuthenticationFilter` cho phep public endpoints SePay can thiet (`/sepay/create`, `/sepay/webhook`, `/sepay/{ref}/status`) va giu endpoint admin can auth.
+    - Da cap nhat config SePay env trong `payment-service/src/main/resources/application.yml` va `application-local.yml`.
+    - Da mo rong customer flow tren `table-service` payment modal: chon `cash|sepay`, tao ma SePay, poll status va cap nhat UI.
+    - Da them trang admin SePay trong `Fe-Admin` (`/payments`) gom list/filter giao dich va thao tac danh dau da xu ly hoan tien thu cong.
+    - Da mo rong menu/sidebar va role access cho route `/payments` trong `Fe-Admin`.
+    - Build verify thanh cong: `payment-service` (maven), `table-service` (maven), `Fe-Admin` (`npm run build`).
   - Now:
-    - Chuan bi commit implementation plan va ban giao lua chon cach thuc thi cho user.
+    - Tong hop thay doi, san sang ban giao ket qua implementation vong 1 cho user.
   - Next:
-    - User chon cach thuc thi plan (Subagent-Driven trong session nay hoac Parallel Session tach rieng).
-    - Neu user chon, bat dau implement theo task-by-task.
+    - User review/pull latest va test manual E2E theo luong SePay.
+    - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
 
 Open questions (UNCONFIRMED if needed):
 - Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).
@@ -96,6 +105,13 @@ Working set (files/ids/commands):
 - CONTINUITY.md
 - docs/plans/2026-04-08-sepay-integration-design.md
 - docs/plans/2026-04-08-sepay-integration-implementation-plan.md
-- api-gateway/src/main/resources/application-local.yml
-- Fe-Admin/app/login/page.tsx
-- docs.tose.sh (overview/cli/api)
+- payment-service/src/main/java/com/restaurant/paymentservice/service/PaymentService.java
+- payment-service/src/main/java/com/restaurant/paymentservice/controller/PaymentController.java
+- payment-service/src/main/java/com/restaurant/paymentservice/entity/PaymentTransaction.java
+- payment-service/src/main/java/com/restaurant/paymentservice/provider/*
+- payment-service/src/main/java/com/restaurant/paymentservice/job/PaymentTransactionScheduler.java
+- table-service/src/main/resources/static/index.html
+- table-service/src/main/resources/static/js/app.js
+- Fe-Admin/app/payments/page.tsx
+- Fe-Admin/components/admin-layout.tsx
+- Fe-Admin/lib/auth.ts
