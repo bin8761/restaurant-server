@@ -34,10 +34,9 @@ public class EmailService {
      */
     public void sendOtpEmail(String toEmail, String fullName, String otp) {
         if (mailUsername == null || mailUsername.isBlank()) {
-            log.info("=== [DEV MODE] Email Verification OTP ===");
-            log.info("To: {}", toEmail);
-            log.info("OTP: {}", otp);
-            log.info("==========================================");
+            String message = "MAIL_USERNAME đang trống. Chưa cấu hình SMTP nên không thể gửi OTP email.";
+            log.warn(message);
+            handleMailFailure(message, otp, new IllegalStateException(message));
             return;
         }
 
@@ -95,10 +94,9 @@ public class EmailService {
         String verifyUrl = baseUrl + "/api/users/verify-email?token=" + token;
 
         if (mailUsername == null || mailUsername.isBlank()) {
-            log.info("=== [DEV MODE] Email verification token ===");
-            log.info("To: {}", toEmail);
-            log.info("Verify URL: {}", verifyUrl);
-            log.info("===========================================");
+            String message = "MAIL_USERNAME đang trống. Chưa cấu hình SMTP nên không thể gửi email xác thực.";
+            log.warn(message);
+            handleMailFailure(message, verifyUrl, new IllegalStateException(message));
             return;
         }
 

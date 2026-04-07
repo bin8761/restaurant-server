@@ -19,6 +19,7 @@ Key decisions:
 - Chot rule van hanh: SePay chay song song voi cash (khong thay the cash flow hien tai).
 - Chon Approach A: mo rong `payment-service` theo provider-based (`cash` + `sepay`), khong tao microservice moi.
 - User chon thuc thi implementation ngay trong session chat hien tai.
+- User chot muc tieu hien tai: chi can chay duoc voi SePay sandbox.
 - TOSE docs da duoc doc lai (overview + CLI + API): project mo ta theo mo hinh 1 app/1 port.
 - Chot huong deploy: 1 project = 1 container.
 - Chot pham vi: deploy du 10 project (gateway + 8 services + Fe-Admin).
@@ -91,9 +92,14 @@ State:
     - Da them trang admin SePay trong `Fe-Admin` (`/payments`) gom list/filter giao dich va thao tac danh dau da xu ly hoan tien thu cong.
     - Da mo rong menu/sidebar va role access cho route `/payments` trong `Fe-Admin`.
     - Build verify thanh cong: `payment-service` (maven), `table-service` (maven), `Fe-Admin` (`npm run build`).
+    - Da bo sung env alias cho SePay trong `payment-service/application.yml` de tai su dung bien tu du an mau (`SEPAY_API_TOKEN`, `SEPAY_API_BASE_URL`, `SEPAY_IPN_API_KEY`).
+    - Da khoanh vung va fix loi OTP fail ngầm o `user-service`: khi `MAIL_USERNAME` rong se khong con tra success gia; se throw theo `app.mail.fail-on-error`.
+    - Build verify thanh cong `user-service` bang portable Maven sau khi patch email flow.
   - Now:
-    - Tong hop thay doi, san sang ban giao ket qua implementation vong 1 cho user.
+    - Huong dan user cau hinh SMTP tren Railway de OTP email den hop thu that.
   - Next:
+    - User set/correct MAIL_* env tren `user-service` va redeploy.
+    - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
 
