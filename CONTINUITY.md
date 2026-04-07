@@ -80,11 +80,13 @@ State:
     - Da sua `table-service/src/main/resources/static/menu/index.html` de dung `window.API_BASE` cho image URL, bo hardcode `hostname + ':3000'`.
     - Da commit va push len `origin/main` commit `0bc3ec6` de trigger Railway build lai cho fix table-service.
     - User da approve toan bo design sections: Architecture, Data Flow, Error Handling, Testing cho SePay.
+    - Da tao design doc `docs/plans/2026-04-08-sepay-integration-design.md` va commit `141b3f0`.
+    - Da dung skill `writing-plans` va tao implementation plan `docs/plans/2026-04-08-sepay-integration-implementation-plan.md`.
   - Now:
-    - Dang ghi design doc SePay vao `docs/plans/2026-04-08-sepay-integration-design.md` va chuan bi commit.
+    - Chuan bi commit implementation plan va ban giao lua chon cach thuc thi cho user.
   - Next:
-    - Commit design doc.
-    - Chuyen sang skill writing-plans de lap implementation plan.
+    - User chon cach thuc thi plan (Subagent-Driven trong session nay hoac Parallel Session tach rieng).
+    - Neu user chon, bat dau implement theo task-by-task.
 
 Open questions (UNCONFIRMED if needed):
 - Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).
@@ -93,6 +95,7 @@ Open questions (UNCONFIRMED if needed):
 Working set (files/ids/commands):
 - CONTINUITY.md
 - docs/plans/2026-04-08-sepay-integration-design.md
+- docs/plans/2026-04-08-sepay-integration-implementation-plan.md
 - api-gateway/src/main/resources/application-local.yml
 - Fe-Admin/app/login/page.tsx
 - docs.tose.sh (overview/cli/api)
