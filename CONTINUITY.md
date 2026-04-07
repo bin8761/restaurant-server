@@ -96,10 +96,15 @@ State:
     - Da khoanh vung va fix loi OTP fail ngầm o `user-service`: khi `MAIL_USERNAME` rong se khong con tra success gia; se throw theo `app.mail.fail-on-error`.
     - Build verify thanh cong `user-service` bang portable Maven sau khi patch email flow.
     - Da xac dinh nguyen nhan runtime tren Railway: user dang set bien `SMTP_*` thay vi `MAIL_*` nen app van doc rong `MAIL_USERNAME`.
+    - Da bo sung alias env `MAIL_USER/MAIL_PASS` trong `user-service/application.yml` va push commit `83985ee`.
+    - Da bo sung timeout SMTP (`connectiontimeout/timeout/writetimeout`) + env `APP_MAIL_FAIL_ON_ERROR` trong `user-service/application.yml` va push commit `66481ea`.
+    - Da bo sung them alias SMTP day du (`SMTP_HOST/PORT/USER/PASS/...`) trong `user-service/application.yml` de tuong thich ca 2 cach dat ten env.
+    - Da chuan hoa `EmailService` va bo sung thong diep loi chi tiet hon cho nhom loi ket noi SMTP timeout/khong ket noi duoc.
+    - Build verify thanh cong `user-service` sau patch moi.
   - Now:
-    - Huong dan user doi ten bien env dung schema `MAIL_*` cua `user-service`.
+    - Can push patch SMTP moi len `origin/main` de Railway auto redeploy va user test lai OTP.
   - Next:
-    - User sua env tu `SMTP_*` sang `MAIL_*`, redeploy `user-service`, test lai register OTP.
+    - User test lai OTP ngay sau deploy; neu van loi thi lay log `user-service` de chot root cause SMTP.
     - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
