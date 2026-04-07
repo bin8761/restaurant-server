@@ -95,10 +95,11 @@ State:
     - Da bo sung env alias cho SePay trong `payment-service/application.yml` de tai su dung bien tu du an mau (`SEPAY_API_TOKEN`, `SEPAY_API_BASE_URL`, `SEPAY_IPN_API_KEY`).
     - Da khoanh vung va fix loi OTP fail ngầm o `user-service`: khi `MAIL_USERNAME` rong se khong con tra success gia; se throw theo `app.mail.fail-on-error`.
     - Build verify thanh cong `user-service` bang portable Maven sau khi patch email flow.
+    - Da xac dinh nguyen nhan runtime tren Railway: user dang set bien `SMTP_*` thay vi `MAIL_*` nen app van doc rong `MAIL_USERNAME`.
   - Now:
-    - Huong dan user cau hinh SMTP tren Railway de OTP email den hop thu that.
+    - Huong dan user doi ten bien env dung schema `MAIL_*` cua `user-service`.
   - Next:
-    - User set/correct MAIL_* env tren `user-service` va redeploy.
+    - User sua env tu `SMTP_*` sang `MAIL_*`, redeploy `user-service`, test lai register OTP.
     - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
