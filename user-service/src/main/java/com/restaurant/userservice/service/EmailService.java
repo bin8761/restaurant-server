@@ -19,7 +19,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -27,7 +29,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EmailService {
 
-    private static final String RESEND_SEND_EMAIL_PATH = "/emails";
+    private static final String SENDGRID_SEND_EMAIL_PATH = "/v3/mail/send";
 
     private final JavaMailSender mailSender;
     private final ObjectMapper objectMapper;
@@ -41,20 +43,23 @@ public class EmailService {
     @Value("${app.mail.fail-on-error:true}")
     private boolean failOnMailError;
 
-    @Value("${app.mail.resend.api-key:${RESEND_API_KEY:}}")
-    private String resendApiKey;
+    @Value("${app.mail.sendgrid.api-key:${SENDGRID_API_KEY:}}")
+    private String sendGridApiKey;
 
-    @Value("${app.mail.resend.base-url:${RESEND_API_BASE_URL:https://api.resend.com}}")
-    private String resendBaseUrl;
+    @Value("${app.mail.sendgrid.base-url:${SENDGRID_API_BASE_URL:https://api.sendgrid.com}}")
+    private String sendGridBaseUrl;
 
-    @Value("${app.mail.resend.from:${RESEND_FROM:}}")
-    private String resendFrom;
+    @Value("${app.mail.sendgrid.from:${SENDGRID_FROM:}}")
+    private String sendGridFrom;
 
-    @Value("${app.mail.resend.connect-timeout-ms:${RESEND_CONNECT_TIMEOUT_MS:5000}}")
-    private int resendConnectTimeoutMs;
+    @Value("${app.mail.sendgrid.from-name:${SENDGRID_FROM_NAME:Nha Hang}}")
+    private String sendGridFromName;
 
-    @Value("${app.mail.resend.read-timeout-ms:${RESEND_READ_TIMEOUT_MS:10000}}")
-    private int resendReadTimeoutMs;
+    @Value("${app.mail.sendgrid.connect-timeout-ms:${SENDGRID_CONNECT_TIMEOUT_MS:5000}}")
+    private int sendGridConnectTimeoutMs;
+
+    @Value("${app.mail.sendgrid.read-timeout-ms:${SENDGRID_READ_TIMEOUT_MS:10000}}")
+    private int sendGridReadTimeoutMs;
 
     public void sendOtpEmail(String toEmail, String fullName, String otp) {
         String subject = "Ma xac thuc tai khoan cua ban";
@@ -76,21 +81,21 @@ public class EmailService {
                                String html,
                                String fallbackValue,
                                String genericFailureMessage) {
-        if (hasResendApiKey()) {
-            sendViaResendApi(toEmail, subject, html, fallbackValue, genericFailureMessage);
+        if (hasSendGridApiKey()) {
+            sendViaSendGridApi(toEmail, subject, html, fallbackValue, genericFailureMessage);
             return;
         }
 
-        sendViaSmtp(toEmail, subject, html, fallbackValue, genericFailureMessage);
+        sendViaSmtp(toEmail, subject, html, fallbackValue);
     }
 
-    private void sendViaResendApi(String toEmail,
-                                  String subject,
-                                  String html,
-                                  String fallbackValue,
-                                  String genericFailureMessage) {
-        if (resendFrom == null || resendFrom.isBlank()) {
-            String message = "RESEND_FROM dang trong. Chua cau hinh du thong tin gui mail qua Resend API.";
+    private void sendViaSendGridApi(String toEmail,
+                                    String subject,
+                                    String html,
+                                    String fallbackValue,
+                                    String genericFailureMessage) {
+        if (sendGridFrom == null || sendGridFrom.isBlank()) {
+            String message = "SENDGRID_FROM dang trong. Chua cau hinh du thong tin gui mail qua SendGrid API.";
             log.warn(message);
             handleMailFailure(message, fallbackValue, new IllegalStateException(message));
             return;
@@ -98,19 +103,27 @@ public class EmailService {
 
         try {
             HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(Math.max(1000, resendConnectTimeoutMs)))
+                    .connectTimeout(Duration.ofMillis(Math.max(1000, sendGridConnectTimeoutMs)))
                     .build();
 
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("from", resendFrom);
-            payload.put("to", new String[]{toEmail});
+            List<Map<String, Object>> personalizations = new ArrayList<>();
+            personalizations.add(Map.of("to", List.of(Map.of("email", toEmail))));
+            payload.put("personalizations", personalizations);
+
+            Map<String, Object> from = new LinkedHashMap<>();
+            from.put("email", sendGridFrom.trim());
+            if (sendGridFromName != null && !sendGridFromName.isBlank()) {
+                from.put("name", sendGridFromName.trim());
+            }
+            payload.put("from", from);
             payload.put("subject", subject);
-            payload.put("html", html);
+            payload.put("content", List.of(Map.of("type", "text/html", "value", html)));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(normalizeResendBaseUrl() + RESEND_SEND_EMAIL_PATH))
-                    .timeout(Duration.ofMillis(Math.max(1000, resendReadTimeoutMs)))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + resendApiKey.trim())
+                    .uri(URI.create(normalizeSendGridBaseUrl() + SENDGRID_SEND_EMAIL_PATH))
+                    .timeout(Duration.ofMillis(Math.max(1000, sendGridReadTimeoutMs)))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + sendGridApiKey.trim())
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
@@ -118,17 +131,17 @@ public class EmailService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
-                String msg = "Resend API tra ve status " + status + ". Body=" + truncate(response.body(), 400);
+                String msg = "SendGrid API tra ve status " + status + ". Body=" + truncate(response.body(), 400);
                 log.error("{}", msg);
-                handleMailFailure("Khong the gui email OTP qua Resend luc nay. Vui long thu lai sau it phut.",
+                handleMailFailure("Khong the gui email OTP qua SendGrid luc nay. Vui long thu lai sau it phut.",
                         fallbackValue,
                         new RuntimeException(msg));
                 return;
             }
 
-            log.info("Email sent via Resend API to {}", toEmail);
+            log.info("Email sent via SendGrid API to {}", toEmail);
         } catch (Exception e) {
-            log.error("Resend API send failed to {}: {}", toEmail, e.getMessage());
+            log.error("SendGrid API send failed to {}: {}", toEmail, e.getMessage());
             handleMailFailure(genericFailureMessage, fallbackValue, e);
         }
     }
@@ -136,8 +149,7 @@ public class EmailService {
     private void sendViaSmtp(String toEmail,
                              String subject,
                              String html,
-                             String fallbackValue,
-                             String genericFailureMessage) {
+                             String fallbackValue) {
         if (mailUsername == null || mailUsername.isBlank()) {
             String message = "MAIL_USERNAME dang trong. Chua cau hinh SMTP nen khong the gui email.";
             log.warn(message);
@@ -170,14 +182,14 @@ public class EmailService {
         }
     }
 
-    private boolean hasResendApiKey() {
-        return resendApiKey != null && !resendApiKey.isBlank();
+    private boolean hasSendGridApiKey() {
+        return sendGridApiKey != null && !sendGridApiKey.isBlank();
     }
 
-    private String normalizeResendBaseUrl() {
-        String value = resendBaseUrl == null || resendBaseUrl.isBlank()
-                ? "https://api.resend.com"
-                : resendBaseUrl.trim();
+    private String normalizeSendGridBaseUrl() {
+        String value = sendGridBaseUrl == null || sendGridBaseUrl.isBlank()
+                ? "https://api.sendgrid.com"
+                : sendGridBaseUrl.trim();
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 

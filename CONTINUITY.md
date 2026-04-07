@@ -108,11 +108,14 @@ State:
     - Da implement `user-service` gui email uu tien qua Resend API, fallback SMTP khi khong co `RESEND_API_KEY`.
     - Da bo sung config `app.mail.resend.*` trong `user-service/application.yml`.
     - Build verify thanh cong `user-service` sau khi them Resend API flow.
+    - Da chuyen provider tu Resend sang SendGrid theo yeu cau user: uu tien SendGrid API, fallback SMTP khi khong co `SENDGRID_API_KEY`.
+    - Da doi config tu `app.mail.resend.*` sang `app.mail.sendgrid.*` trong `user-service/application.yml`.
+    - Build verify thanh cong `user-service` sau khi doi sang SendGrid.
   - Now:
-    - Chuan bi commit/push patch Resend de Railway auto deploy.
+    - Chuan bi commit/push patch SendGrid de Railway auto deploy.
   - Next:
     - Commit + push `main`.
-    - User set env Resend (`RESEND_API_KEY`, `RESEND_FROM`) va test lai OTP.
+    - User set env SendGrid (`SENDGRID_API_KEY`, `SENDGRID_FROM`) va test lai OTP.
     - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.

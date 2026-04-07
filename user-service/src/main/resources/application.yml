@@ -42,10 +42,11 @@ app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:3011}
   mail:
     fail-on-error: ${APP_MAIL_FAIL_ON_ERROR:true}
-    resend:
-      api-key: ${RESEND_API_KEY:}
-      base-url: ${RESEND_API_BASE_URL:https://api.resend.com}
-      from: ${RESEND_FROM:}
-      connect-timeout-ms: ${RESEND_CONNECT_TIMEOUT_MS:5000}
-      read-timeout-ms: ${RESEND_READ_TIMEOUT_MS:10000}
+    sendgrid:
+      api-key: ${SENDGRID_API_KEY:}
+      base-url: ${SENDGRID_API_BASE_URL:https://api.sendgrid.com}
+      from: ${SENDGRID_FROM:}
+      from-name: ${SENDGRID_FROM_NAME:Nha Hang}
+      connect-timeout-ms: ${SENDGRID_CONNECT_TIMEOUT_MS:5000}
+      read-timeout-ms: ${SENDGRID_READ_TIMEOUT_MS:10000}
 
