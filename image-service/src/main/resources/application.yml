@@ -16,5 +16,5 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}
 
 upload:
-  dir: uploads
+  dir: ${UPLOAD_DIR:uploads}
 
