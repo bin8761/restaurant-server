@@ -101,10 +101,18 @@ State:
     - Da bo sung them alias SMTP day du (`SMTP_HOST/PORT/USER/PASS/...`) trong `user-service/application.yml` de tuong thich ca 2 cach dat ten env.
     - Da chuan hoa `EmailService` va bo sung thong diep loi chi tiet hon cho nhom loi ket noi SMTP timeout/khong ket noi duoc.
     - Build verify thanh cong `user-service` sau patch moi.
+    - Da push commit `51b8626` len `origin/main` de Railway redeploy patch SMTP alias + timeout.
+    - Da ra soat lai luong OTP trong code (`AuthService.register -> createOtpLog -> EmailService.sendOtpEmail`) va config `spring.mail`; khong thay bug logic chan gui OTP.
+    - Da nhan log runtime xac nhan root-cause: `MailConnectException` + `SocketTimeoutException: Connect timed out` khi ket noi `smtp.gmail.com:587` tu `user-service` tren Railway.
+    - Da doi chieu docs Railway Outbound Networking: SMTP chi available tren Pro+; Free/Trial/Hobby bi disable outbound SMTP.
+    - Da implement `user-service` gui email uu tien qua Resend API, fallback SMTP khi khong co `RESEND_API_KEY`.
+    - Da bo sung config `app.mail.resend.*` trong `user-service/application.yml`.
+    - Build verify thanh cong `user-service` sau khi them Resend API flow.
   - Now:
-    - Can push patch SMTP moi len `origin/main` de Railway auto redeploy va user test lai OTP.
+    - Chuan bi commit/push patch Resend de Railway auto deploy.
   - Next:
-    - User test lai OTP ngay sau deploy; neu van loi thi lay log `user-service` de chot root cause SMTP.
+    - Commit + push `main`.
+    - User set env Resend (`RESEND_API_KEY`, `RESEND_FROM`) va test lai OTP.
     - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
