@@ -17,9 +17,9 @@ spring:
           '[/**]':
             # BUG-029: Giới hạn CORS origin, không dùng wildcard *
             allowedOriginPatterns:
-              - "http://localhost:3001"  # Next.js dev server (fallback khi port 3000 bị chiếm)
-              - "http://localhost:3010"  # Fe-Admin (recommended port)
-              - "http://localhost:3011"  # Customer web + table-service
+              - "${CORS_ALLOWED_ORIGIN_1:http://localhost:3001}"  # Next.js dev server (fallback khi port 3000 bị chiếm)
+              - "${CORS_ALLOWED_ORIGIN_2:http://localhost:3010}"  # Fe-Admin (recommended port)
+              - "${CORS_ALLOWED_ORIGIN_3:http://localhost:3011}"  # Customer web + table-service
             allowCredentials: true
             allowedMethods:
             - GET
@@ -37,62 +37,62 @@ spring:
         - RemoveRequestHeader=Origin
       routes:
         - id: user-service
-          uri: http://localhost:3005
+          uri: ${USER_SERVICE_URL:http://localhost:3005}
           predicates:
             - Path=/api/users/**
 
         - id: user-service-roles
-          uri: http://localhost:3005
+          uri: ${USER_SERVICE_URL:http://localhost:3005}
           predicates:
             - Path=/api/roles/**
         
         - id: menu-service
-          uri: http://localhost:3002
+          uri: ${MENU_SERVICE_URL:http://localhost:3002}
           predicates:
             - Path=/api/menu/**
 
         - id: order-service
-          uri: http://localhost:3003
+          uri: ${ORDER_SERVICE_URL:http://localhost:3003}
           predicates:
             - Path=/api/orders/**
 
         - id: table-service
-          uri: http://localhost:3011
+          uri: ${TABLE_SERVICE_URL:http://localhost:3011}
           predicates:
             - Path=/api/tables/**
 
         - id: kitchen-service
-          uri: http://localhost:3004
+          uri: ${KITCHEN_SERVICE_URL:http://localhost:3004}
           predicates:
             - Path=/api/kitchen/**
 
         - id: inventory-service
-          uri: http://localhost:3006
+          uri: ${INVENTORY_SERVICE_URL:http://localhost:3006}
           predicates:
             - Path=/api/inventory/**
 
         - id: payment-service
-          uri: http://localhost:3008
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:3008}
           predicates:
             - Path=/api/payments/**
 
         - id: image-service
-          uri: http://localhost:3007
+          uri: ${IMAGE_SERVICE_URL:http://localhost:3007}
           predicates:
             - Path=/api/images/**
 
         - id: payment-websocket
-          uri: http://localhost:3008
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:3008}
           predicates:
             - Path=/ws/payment/**
 
         - id: kitchen-websocket
-          uri: http://localhost:3004
+          uri: ${KITCHEN_SERVICE_URL:http://localhost:3004}
           predicates:
             - Path=/ws/kitchen/**
 
         - id: order-websocket
-          uri: http://localhost:3003
+          uri: ${ORDER_SERVICE_URL:http://localhost:3003}
           predicates:
             - Path=/ws/order/**
 
