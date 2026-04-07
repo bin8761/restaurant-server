@@ -32,13 +32,10 @@ State:
     - User tao DB tren web TOSE va nhan loi: `Provisioning failed. Delete and recreate the database.`
     - User da tao MySQL tren Railway thanh cong va da set 4 bien env cho service order-service.
   - Now:
-    - User hoi vi tri chinh port de order-service nhan cong `PORT` tren Railway.
+    - User yeu cau chuan hoa `server.port` cho cac service con lai de nhan bien `PORT` tren Railway.
   - Next:
-    - Sua `order-service` de dung `server.port: ${PORT:3003}`.
-    - Huong dan user redeploy sau khi push code.
-    - Sau khi pilot Railway on dinh, cap nhat env mapping cho service tiep theo.
-    - Sau khi pilot xong, nhan rong cho cac service khac.
-    - Sau khi order-service on dinh, nhan rong pattern cho cac service con lai + gateway + Fe-Admin.
+    - Sua dong loat `server.port` trong application.yml cua cac service chua doi.
+    - Huong dan user push/redeploy sau khi sua.
 
 Open questions (UNCONFIRMED if needed):
 - Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).

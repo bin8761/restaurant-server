@@ -1,5 +1,5 @@
 server:
-  port: 3007
+  port: ${PORT:3007}
 
 spring:
   jackson:
