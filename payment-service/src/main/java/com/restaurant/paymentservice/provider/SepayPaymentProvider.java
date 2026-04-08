@@ -417,12 +417,14 @@ public class SepayPaymentProvider implements PaymentProvider {
     }
 
     private String buildDirectQrImageUrl(String bank, String account, BigDecimal amount, String transactionRef) {
+        String bankCode = resolveVietQrBankCode(bank);
+        String safeAccount = account == null ? "" : account.replaceAll("\\s+", "");
         String amountText = amount == null ? "0" : amount.stripTrailingZeros().toPlainString();
-        return "https://qr.sepay.vn/img"
-                + "?acc=" + encode(account)
-                + "&bank=" + encode(bank)
-                + "&amount=" + encode(amountText)
-                + "&des=" + encode(transactionRef);
+        // Use VietQR static image format for maximum banking-app compatibility.
+        return "https://img.vietqr.io/image/"
+                + encode(bankCode) + "-" + encode(safeAccount) + "-compact2.png"
+                + "?amount=" + encode(amountText)
+                + "&addInfo=" + encode(transactionRef);
     }
 
     private String resolveDirectQrBank() {
@@ -444,6 +446,17 @@ public class SepayPaymentProvider implements PaymentProvider {
             case "vietcombank", "vcb" -> "Vietcombank";
             case "techcombank", "tcb" -> "Techcombank";
             default -> rawBank;
+        };
+    }
+
+    private String resolveVietQrBankCode(String bank) {
+        String normalized = normalizeBankCode(bank);
+        return switch (normalized) {
+            case "vietinbank", "icb" -> "ICB";
+            case "bidv" -> "BIDV";
+            case "vietcombank", "vcb" -> "VCB";
+            case "techcombank", "tcb" -> "TCB";
+            default -> bank == null || bank.isBlank() ? "ICB" : bank;
         };
     }
 
