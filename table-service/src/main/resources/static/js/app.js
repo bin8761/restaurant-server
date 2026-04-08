@@ -1,4 +1,4 @@
-const state = {
+﻿const state = {
   tableId: null,
   tableKey: null,
   deviceSession: null,   // lÄ‚â€ Ă‚Â°u Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă†â€™ dĂ„â€Ă‚Â¹ng cho watchdog, khĂ„â€Ă‚Â´ng cÄ‚Â¡Ă‚ÂºĂ‚Â§n gÄ‚Â¡Ă‚Â»Ă‚Âi lÄ‚Â¡Ă‚ÂºĂ‚Â¡i getDeviceSession() nhiÄ‚Â¡Ă‚Â»Ă‚Âu lÄ‚Â¡Ă‚ÂºĂ‚Â§n
@@ -19,7 +19,7 @@ const state = {
   modalQuantity: 1,
   socket: null,
   itemStatuses: {},
-  paymentMethod: 'cash',
+  paymentMethod: 'sepay',
   sepayPollingTimer: null,
   sepayTransactionRef: null,
   imagesEnabled: null,
@@ -1169,10 +1169,16 @@ function showSessionEnded(reason) {
 function openPaymentModal() {
   const totalAmount = state.summary?.total_amount || 0;
   document.getElementById('payment-total').textContent = formatCurrency(totalAmount);
-  state.paymentMethod = 'cash';
+  const requestOrderId = getRequestPaymentOrderId();
+  if (!requestOrderId) {
+    showToast('Chưa có hóa đơn để thanh toán', 'error');
+    return;
+  }
+  state.paymentMethod = 'sepay';
   updatePaymentMethodUI();
   document.getElementById('payment-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  submitSepayPayment(requestOrderId);
 }
 
 function closePaymentModal() {
@@ -1192,27 +1198,21 @@ function setPaymentMethod(method) {
 
 function updatePaymentMethodUI() {
   const qrSection = document.getElementById('sepay-qr-section');
-  const submitBtn = document.getElementById('payment-submit-btn');
   const statusText = document.getElementById('sepay-status-text');
   const qrContent = document.getElementById('sepay-qr-content');
   const note = document.querySelector('.payment-modal-note');
 
-  if (!submitBtn || !note || !qrSection) return;
-
-  if (state.paymentMethod === 'sepay') {
-    submitBtn.textContent = 'Tạo mã SePay';
-    note.textContent = 'Khach co the chuyen khoan truc tiep bang SePay va he thong se tu cap nhat trang thai.';
+  if (note) {
+    note.textContent = 'Quét mã QR SePay để thanh toán.';
+  }
+  if (qrSection) {
     qrSection.classList.remove('hidden');
-    if (statusText && !statusText.textContent) {
-      statusText.textContent = 'Đang chờ tạo mã...';
-    }
-    if (qrContent && !qrContent.textContent) {
-      qrContent.textContent = 'Chưa có mã';
-    }
-  } else {
-    submitBtn.textContent = 'Gửi yêu cầu thanh toán';
-    note.textContent = 'Yêu cầu thanh toán sẽ được gửi đến thu ngân. Nhân viên sẽ đến bàn để hỗ trợ thanh toán.';
-    qrSection.classList.add('hidden');
+  }
+  if (statusText && !statusText.textContent) {
+    statusText.textContent = 'Đang chờ tạo mã...';
+  }
+  if (qrContent && !qrContent.textContent) {
+    qrContent.textContent = 'Đang tạo mã...';
   }
 }
 
@@ -1246,23 +1246,7 @@ async function submitPaymentRequest() {
     showToast('Chưa có hóa đơn để thanh toán', 'error');
     return;
   }
-
-  if (state.paymentMethod === 'sepay') {
-    await submitSepayPayment(requestOrderId);
-    return;
-  }
-
-  try {
-    await fetchJson(`/api/orders/${requestOrderId}/request-payment`, {
-      method: 'POST',
-      body: JSON.stringify({ table_key: state.tableKey }),
-    });
-    closePaymentModal();
-    await refreshOrders();
-    showToast('Đã gửi yêu cầu thanh toán');
-  } catch (error) {
-    showToast(error.message || 'Không thể gửi yêu cầu thanh toán', 'error');
-  }
+  await submitSepayPayment(requestOrderId);
 }
 
 async function submitSepayPayment(orderId) {
@@ -1298,7 +1282,7 @@ async function submitSepayPayment(orderId) {
       try {
         const statusRes = await fetchJson(`/api/payments/sepay/${encodeURIComponent(state.sepayTransactionRef)}/status`);
         const status = (statusRes.status || '').toUpperCase();
-        if (statusText) statusText.textContent = `Trang thai: ${status || 'PENDING'}`;
+        if (statusText) statusText.textContent = `Trạng thái: ${status || 'PENDING'}`;
 
         if (status === 'PAID') {
           clearInterval(state.sepayPollingTimer);
@@ -1354,4 +1338,5 @@ document.addEventListener('DOMContentLoaded', () => {
   bindUiEvents();
   initApp();
 });
+
 

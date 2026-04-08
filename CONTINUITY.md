@@ -1,6 +1,6 @@
 ﻿Goal (incl. success criteria):
-- Đổi nút "Yêu cầu thanh toán" thành "Thanh toán" trên trang QR.
-- Rà soát và sửa các chuỗi tiếng Việt không dấu còn lại thành có dấu.
+- Đổi luồng thanh toán: bấm "Thanh toán" sẽ gọi SePay và tạo QR ngay, không chọn phương thức, không cần nút tạo QR.
+- Cập nhật nhãn nút/ghi chú phù hợp và đảm bảo tiếng Việt có dấu.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -40,7 +40,7 @@ State:
     - Đã cập nhật toàn bộ chuỗi hiển thị sang tiếng Việt có dấu trong `app.js`.
     - Đã thêm CSS mobile để header hiển thị rõ thông tin bàn.
   - Now:
-    - Đã đổi nút "Yêu cầu thanh toán" -> "Thanh toán" và sửa nốt chữ không dấu (chưa commit/push).
+    - Đang chuyển luồng thanh toán sang SePay-only và tự tạo QR khi mở modal (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
@@ -51,5 +51,4 @@ Working set (files/ids/commands):
 - `CONTINUITY.md`
 - `rule/continuity-ledger-rule.mdc`
 - `table-service/src/main/resources/static/js/app.js`
-- `table-service/src/main/resources/static/css/style.css`
 - `table-service/src/main/resources/static/index.html`

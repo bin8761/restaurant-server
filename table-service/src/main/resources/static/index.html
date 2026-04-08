@@ -396,27 +396,14 @@
             <path d="M1 10h22"/>
           </svg>
         </div>
-        <h3 class="payment-modal-title">Yêu cầu thanh toán</h3>
+        <h3 class="payment-modal-title">Thanh toán</h3>
         <div class="payment-modal-info">
           <div class="payment-info-row">
             <span class="payment-info-label">Tổng tiền phiên</span>
             <span id="payment-total" class="payment-info-value">0đ</span>
           </div>
         </div>
-        <div class="payment-modal-info" style="margin-top: 12px;">
-          <div class="payment-info-row" style="display: block;">
-            <span class="payment-info-label" style="display:block; margin-bottom:8px;">Phương thức</span>
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-              <input type="radio" name="payment-method" value="cash" checked onchange="setPaymentMethod('cash')">
-              <span>Tiền mặt (gọi thu ngân)</span>
-            </label>
-            <label style="display:flex; align-items:center; gap:8px;">
-              <input type="radio" name="payment-method" value="sepay" onchange="setPaymentMethod('sepay')">
-              <span>Chuyển khoản SePay</span>
-            </label>
-          </div>
-        </div>
-        <div id="sepay-qr-section" class="payment-modal-info hidden" style="margin-top: 12px;">
+        <div id="sepay-qr-section" class="payment-modal-info" style="margin-top: 12px;">
           <div class="payment-info-row" style="display:block;">
             <span class="payment-info-label" style="display:block; margin-bottom:8px;">Mã thanh toán SePay</span>
             <div id="sepay-qr-content" style="font-size:12px; word-break:break-all; background:#f5f5f5; padding:8px; border-radius:8px;"></div>
@@ -424,11 +411,8 @@
           </div>
         </div>
         <p class="payment-modal-note">
-          Yêu cầu thanh toán sẽ được gửi đến thu ngân. Nhân viên sẽ đến bàn để hỗ trợ thanh toán.
+          Quét mã QR SePay để thanh toán.
         </p>
-        <button id="payment-submit-btn" class="btn btn-accent btn-lg btn-full" onclick="submitPaymentRequest()">
-          Gửi yêu cầu thanh toán
-        </button>
       </div>
     </div>
   </div>
