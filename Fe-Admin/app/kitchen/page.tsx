@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
@@ -41,7 +41,7 @@ interface KitchenItem {
   food_name: string;
   food_image: string;
   quantity: number;
-  status: "Chờ chế biến" | "Đang chế biến" | "Hoàn thành";
+  status: string;
   updated_at: string;
 }
 
@@ -55,6 +55,21 @@ interface KitchenStats {
 // Fetcher function
 const fetcher = (url: string) => api.get(url).then((res) => res.data);
 
+const normalizeText = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\u0111/g, "d")
+    .replace(/\u0110/g, "D")
+    .toLowerCase();
+
+const getKitchenStatusKey = (status: string) => {
+  const s = normalizeText(status);
+  if (s.includes("cho") && s.includes("che bien")) return "pending";
+  if (s.includes("dang") && (s.includes("che bien") || s.includes("nau") || s.includes("lam"))) return "cooking";
+  if (s.includes("hoan thanh") || s.includes("da xong") || s.includes("xong")) return "completed";
+  return "other";
+};
 export default function KitchenPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("all");
@@ -122,9 +137,10 @@ export default function KitchenPage() {
   // Filter items based on active tab
   const filteredItems = queueItems.filter((item) => {
     if (activeTab === "all") return true;
-    if (activeTab === "pending") return item.status === "Chờ chế biến";
-    if (activeTab === "cooking") return item.status === "Đang chế biến";
-    if (activeTab === "completed") return item.status === "Hoàn thành";
+    const key = getKitchenStatusKey(item.status);
+    if (activeTab === "pending") return key === "pending";
+    if (activeTab === "cooking") return key === "cooking";
+    if (activeTab === "completed") return key === "completed";
     return true;
   });
 
@@ -181,31 +197,32 @@ export default function KitchenPage() {
 
   // Get status badge variant
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Chờ chế biến":
-        return (
-          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-            <Clock className="mr-1 size-3" />
-            Chờ chế biến
-          </Badge>
-        );
-      case "Đang chế biến":
-        return (
-          <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-            <Flame className="mr-1 size-3" />
-            Đang chế biến
-          </Badge>
-        );
-      case "Hoàn thành":
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
-            <CheckCircle2 className="mr-1 size-3" />
-            Hoàn thành
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    const key = getKitchenStatusKey(status);
+    if (key === "pending") {
+      return (
+        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+          <Clock className="mr-1 size-3" />
+          Chờ chế biến
+        </Badge>
+      );
     }
+    if (key === "cooking") {
+      return (
+        <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+          <Flame className="mr-1 size-3" />
+          Đang chế biến
+        </Badge>
+      );
+    }
+    if (key === "completed") {
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <CheckCircle2 className="mr-1 size-3" />
+          Hoàn thành
+        </Badge>
+      );
+    }
+    return <Badge variant="outline">{status}</Badge>;
   };
 
   // Format time
@@ -442,3 +459,4 @@ export default function KitchenPage() {
     </div>
   );
 }
+
