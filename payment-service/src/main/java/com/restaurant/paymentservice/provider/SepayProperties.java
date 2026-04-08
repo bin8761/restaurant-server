@@ -17,6 +17,8 @@ public class SepayProperties {
     private String userapiBaseUrl = "https://my.sepay.vn";
     private String bankCode = "";
     private String bankAccountId = "";
+    private int httpConnectTimeoutMs = 8000;
+    private int httpReadTimeoutMs = 15000;
     private String apiKey = "";
     private String webhookSecret = "";
     private String returnUrl = "";

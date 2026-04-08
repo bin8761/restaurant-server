@@ -13,6 +13,8 @@ payment:
     userapi-base-url: "https://my.sepay.vn"
     bank-code: ""
     bank-account-id: ""
+    http-connect-timeout-ms: 8000
+    http-read-timeout-ms: 15000
     api-key: ""
     webhook-secret: ""
     return-url: ""

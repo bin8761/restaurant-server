@@ -36,6 +36,8 @@ payment:
     webhook-secret: ${SEPAY_WEBHOOK_SECRET:${SEPAY_IPN_API_KEY:}}
     return-url: ${SEPAY_RETURN_URL:}
     timeout-minutes: ${SEPAY_TIMEOUT_MINUTES:15}
+    http-connect-timeout-ms: ${SEPAY_HTTP_CONNECT_TIMEOUT_MS:8000}
+    http-read-timeout-ms: ${SEPAY_HTTP_READ_TIMEOUT_MS:15000}
     timeout-check-ms: ${SEPAY_TIMEOUT_CHECK_MS:30000}
     retry-sync-ms: ${SEPAY_RETRY_SYNC_MS:45000}
     internal-auth-header: ${SEPAY_INTERNAL_AUTH_HEADER:}

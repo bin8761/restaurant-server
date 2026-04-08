@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -29,7 +30,12 @@ public class SepayPaymentProvider implements PaymentProvider {
                                 RestTemplateBuilder restTemplateBuilder,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
-        this.restTemplate = restTemplateBuilder.build();
+        long connectTimeout = Math.max(1000, properties.getHttpConnectTimeoutMs());
+        long readTimeout = Math.max(2000, properties.getHttpReadTimeoutMs());
+        this.restTemplate = restTemplateBuilder
+                .setConnectTimeout(Duration.ofMillis(connectTimeout))
+                .setReadTimeout(Duration.ofMillis(readTimeout))
+                .build();
         this.objectMapper = objectMapper;
     }
 
@@ -58,7 +64,17 @@ public class SepayPaymentProvider implements PaymentProvider {
         headers.setBearerAuth(apiKey);
 
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.postForEntity(url, requestEntity, String.class);
+        } catch (RestClientException ex) {
+            log.error("SePay create failed: url={}, mode={}, txRef={}, reason={}",
+                    url,
+                    userApiMode ? "userapi" : "legacy",
+                    transactionRef,
+                    ex.toString());
+            throw new RuntimeException("SePay timeout/connection error: " + ex.getClass().getSimpleName(), ex);
+        }
 
         Map<String, Object> parsed = parseResponse(response.getBody());
         Map<String, Object> source = extractPrimaryPayload(parsed);
