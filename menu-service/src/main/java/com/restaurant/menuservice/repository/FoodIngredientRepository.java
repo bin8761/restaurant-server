@@ -6,5 +6,6 @@ import java.util.List;
 
 public interface FoodIngredientRepository extends JpaRepository<FoodIngredient, Integer> {
     List<FoodIngredient> findByFoodId(Integer foodId);
+    List<FoodIngredient> findByFoodIdIn(List<Integer> foodIds);
     void deleteByFoodId(Integer foodId);
 }

@@ -4,16 +4,17 @@ import com.restaurant.menuservice.client.InventoryClient;
 import com.restaurant.menuservice.dto.FoodCreateUpdateDto;
 import com.restaurant.menuservice.dto.FoodDto;
 import com.restaurant.menuservice.dto.IngredientDto;
+import com.restaurant.menuservice.entity.BuffetPackage;
 import com.restaurant.menuservice.entity.Category;
 import com.restaurant.menuservice.entity.Food;
 import com.restaurant.menuservice.entity.FoodIngredient;
+import com.restaurant.menuservice.repository.BuffetPackageRepository;
 import com.restaurant.menuservice.repository.CategoryRepository;
 import com.restaurant.menuservice.repository.FoodIngredientRepository;
 import com.restaurant.menuservice.repository.FoodRepository;
-import com.restaurant.menuservice.repository.BuffetPackageRepository;
-import com.restaurant.menuservice.entity.BuffetPackage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.springframework.lang.NonNull;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +39,8 @@ public class MenuService {
     }
 
     public Category getCategoryById(@NonNull Integer id) {
-        return categoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay danh muc"));
     }
 
     @Transactional
@@ -57,7 +58,7 @@ public class MenuService {
     @Transactional
     public void deleteCategory(@NonNull Integer id) {
         if (foodRepository.countByCategoryId(id) > 0) {
-            throw new RuntimeException("Không thể xóa danh mục có món ăn");
+            throw new RuntimeException("Khong the xoa danh muc co mon an");
         }
         categoryRepository.deleteById(id);
     }
@@ -67,12 +68,33 @@ public class MenuService {
     }
 
     public List<FoodDto> getFoods(Integer categoryId) {
-        List<Food> foods = categoryId != null ? foodRepository.findByCategoryId(categoryId) : foodRepository.findAll();
-        return foods.stream().map(this::mapFoodToDto).collect(Collectors.toList());
+        List<Food> foods = categoryId != null
+                ? foodRepository.findByCategoryId(categoryId)
+                : foodRepository.findAll();
+        if (foods.isEmpty()) {
+            return List.of();
+        }
+
+        List<Integer> foodIds = foods.stream()
+                .map(Food::getId)
+                .collect(Collectors.toList());
+
+        List<FoodIngredient> allFoodIngredients = foodIngredientRepository.findByFoodIdIn(foodIds);
+        Map<Integer, List<FoodIngredient>> ingredientsByFoodId = allFoodIngredients.stream()
+                .collect(Collectors.groupingBy(FoodIngredient::getFoodId));
+        Map<Integer, Map<String, String>> ingredientDetails = resolveIngredientDetails(allFoodIngredients);
+
+        return foods.stream()
+                .map(food -> mapFoodToDto(
+                        food,
+                        ingredientsByFoodId.getOrDefault(food.getId(), List.of()),
+                        ingredientDetails))
+                .collect(Collectors.toList());
     }
 
     public FoodDto getFoodById(@NonNull Integer id) {
-        Food food = foodRepository.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy món ăn"));
+        Food food = foodRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay mon an"));
         return mapFoodToDto(food);
     }
 
@@ -105,12 +127,21 @@ public class MenuService {
     @Transactional
     @SuppressWarnings("null")
     public FoodDto updateFood(@NonNull Integer id, FoodCreateUpdateDto dto) {
-        Food food = foodRepository.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy món ăn"));
-        
-        if (dto.getName() != null) food.setName(dto.getName());
-        if (dto.getPrice() != null) food.setPrice(dto.getPrice());
-        if (dto.getImage_url() != null) food.setImageUrl(dto.getImage_url());
-        if (dto.getCategory_id() != null) food.setCategory(getCategoryById(dto.getCategory_id()));
+        Food food = foodRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay mon an"));
+
+        if (dto.getName() != null) {
+            food.setName(dto.getName());
+        }
+        if (dto.getPrice() != null) {
+            food.setPrice(dto.getPrice());
+        }
+        if (dto.getImage_url() != null) {
+            food.setImageUrl(dto.getImage_url());
+        }
+        if (dto.getCategory_id() != null) {
+            food.setCategory(getCategoryById(dto.getCategory_id()));
+        }
 
         foodRepository.save(food);
 
@@ -130,12 +161,20 @@ public class MenuService {
 
     @Transactional
     public void deleteFood(@NonNull Integer id) {
-        // Assume constraints checked externally
         foodIngredientRepository.deleteByFoodId(id);
         foodRepository.deleteById(id);
     }
 
     private FoodDto mapFoodToDto(Food food) {
+        List<FoodIngredient> foodIngredients = foodIngredientRepository.findByFoodId(food.getId());
+        Map<Integer, Map<String, String>> ingredientDetails = resolveIngredientDetails(foodIngredients);
+        return mapFoodToDto(food, foodIngredients, ingredientDetails);
+    }
+
+    private FoodDto mapFoodToDto(
+            Food food,
+            List<FoodIngredient> foodIngredients,
+            Map<Integer, Map<String, String>> ingredientDetails) {
         FoodDto dto = new FoodDto();
         dto.setId(food.getId());
         dto.setName(food.getName());
@@ -146,29 +185,37 @@ public class MenuService {
             dto.setCategoryName(food.getCategory().getName());
         }
 
-        List<FoodIngredient> fis = foodIngredientRepository.findByFoodId(food.getId());
-        
         List<IngredientDto> ingredientDtos = new ArrayList<>();
-        if (!fis.isEmpty()) {
-            List<Integer> ids = fis.stream().map(FoodIngredient::getIngredientId).collect(Collectors.toList());
-            Map<Integer, Map<String, String>> details = null;
-            try {
-                details = inventoryClient.getIngredientDetails(ids);
-            } catch (Exception e) {
-                log.warn("Lỗi gọi inventory service");
-            }
-            
-            for (FoodIngredient fi : fis) {
-                String name = "N/A";
-                String unit = "N/A";
-                if (details != null && details.containsKey(fi.getIngredientId())) {
-                    name = details.get(fi.getIngredientId()).get("name");
-                    unit = details.get(fi.getIngredientId()).get("unit");
-                }
+        if (!foodIngredients.isEmpty()) {
+            for (FoodIngredient fi : foodIngredients) {
+                Map<String, String> details = ingredientDetails.get(fi.getIngredientId());
+                String name = details != null ? details.getOrDefault("name", "N/A") : "N/A";
+                String unit = details != null ? details.getOrDefault("unit", "N/A") : "N/A";
                 ingredientDtos.add(new IngredientDto(fi.getIngredientId(), name, unit, fi.getAmount()));
             }
         }
         dto.setIngredients(ingredientDtos);
         return dto;
+    }
+
+    private Map<Integer, Map<String, String>> resolveIngredientDetails(List<FoodIngredient> foodIngredients) {
+        if (foodIngredients == null || foodIngredients.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Integer> ingredientIds = foodIngredients.stream()
+                .map(FoodIngredient::getIngredientId)
+                .distinct()
+                .collect(Collectors.toList());
+        if (ingredientIds.isEmpty()) {
+            return Map.of();
+        }
+
+        try {
+            return inventoryClient.getIngredientDetails(ingredientIds);
+        } catch (Exception e) {
+            log.warn("Failed to call inventory service while mapping foods", e);
+            return Map.of();
+        }
     }
 }
