@@ -95,7 +95,15 @@ async function fetchJson(url, options = {}) {
 function getGatewayUrl() {
   const fromConfig = typeof window.API_BASE === 'string' ? window.API_BASE.trim() : '';
   if (fromConfig) return fromConfig.replace(/\/+$/, '');
-  return `${window.location.protocol}//${window.location.host.replace(':3011', ':3000')}`;
+
+  const fromRuntime = typeof window.GATEWAY_URL === 'string' ? window.GATEWAY_URL.trim() : '';
+  if (fromRuntime) return fromRuntime.replace(/\/+$/, '');
+
+  const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (isLocal) return `${window.location.protocol}//${window.location.host.replace(':3011', ':3000')}`;
+
+  return 'https://gateway-production-16f9.up.railway.app';
 }
 
 function getImageUrl(imageUrl) {
