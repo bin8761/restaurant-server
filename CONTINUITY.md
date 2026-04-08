@@ -1,6 +1,5 @@
 ﻿Goal (incl. success criteria):
-- Chỉnh UI mục SePay: ẩn Transaction Ref, ẩn hoàn tiền thủ công/thao tác/ghi chú, ẩn dòng mô tả theo dõi giao dịch.
-- Mapping trạng thái sang văn nói dễ hiểu; thời gian hiển thị đúng múi giờ Việt Nam (HH:mm:ss dd/MM/yyyy); tìm kiếm chỉ theo Order ID (#123 hoặc 123) và bỏ placeholder.
+- Bổ sung Enter để chạy tìm kiếm ở SePay.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -12,13 +11,13 @@ Constraints/Assumptions:
 - Do not run DB/migration/server commands autonomously.
 
 Key decisions:
-- Status mapping: PENDING=Chờ thanh toán, PAID=Đã thanh toán, FAILED=Thất bại, EXPIRED=Hết hạn, PAID_PENDING_SYNC=Đã thanh toán (đang đồng bộ), ALL=Tất cả.
+- Search chỉ theo Order ID, hỗ trợ #123 và 123; Enter phải kích hoạt tìm.
 
 State:
   - Done:
-    - Design + implementation plan cho UI SePay đã ghi vào docs.
+    - UI SePay đã được đơn giản hóa theo yêu cầu trước đó.
   - Now:
-    - Đã chỉnh UI SePay trong FE-Admin (chưa commit/push).
+    - Đã thêm Enter để chạy tìm kiếm (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
@@ -28,5 +27,3 @@ Open questions (`UNCONFIRMED` if needed):
 Working set (files/ids/commands):
 - `CONTINUITY.md`
 - `Fe-Admin/app/payments/page.tsx`
-- `docs/plans/2026-04-08-sepay-ui-design.md`
-- `docs/plans/2026-04-08-sepay-ui.md`

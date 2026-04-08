@@ -116,6 +116,12 @@ export default function PaymentsPage() {
             <Input
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
             />
             <Button type="button" onClick={handleSearch}>Tìm</Button>
           </div>
