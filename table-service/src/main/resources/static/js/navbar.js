@@ -7,7 +7,7 @@ function renderNavbar() {
   el.innerHTML = `
     <nav class="bg-white border-b shadow-sm sticky top-0 z-50">
       <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-        <a href="/" class="font-bold text-orange-600 text-lg">🍽️ Nhà hàng</a>
+        <a href="/menu/" class="font-bold text-orange-600 text-lg">🍽️ Nhà hàng</a>
         <div class="flex items-center gap-5 text-sm">
           <a href="/menu/" class="text-gray-600 hover:text-orange-600 transition">Thực đơn</a>
           <a href="/booking/" class="text-gray-600 hover:text-orange-600 transition">Đặt bàn</a>
