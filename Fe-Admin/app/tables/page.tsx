@@ -334,7 +334,7 @@ export default function TableManagementPage() {
   const formatCountdown = (expiresAt: string): string => {
     void tick; // lệ thuộc tick để re-render
     const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
-    if (diff <= 0) return 'Hết phiên';
+    if (diff <= 0) return '';
     const h = Math.floor(diff / 3600);
     const m = Math.floor((diff % 3600) / 60);
     const s = diff % 60;
@@ -493,6 +493,7 @@ export default function TableManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredTables.map((table) => {
             const enrich = enrichments.get(table.id);
+            const activeCountdown = enrich?.activeKey ? formatCountdown(enrich.activeKey.expiresAt) : '';
             return (
             <div
               key={table.id}
@@ -516,12 +517,12 @@ export default function TableManagementPage() {
                 <div>{getStatusBadge(table.status)}</div>
 
                 {/* Countdown khi bàn đang sử dụng */}
-                {enrich?.activeKey && (
+                {enrich?.activeKey && activeCountdown && (
                   <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
                     <span className="text-xs">⏱️</span>
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-red-700 tabular-nums">
-                        {formatCountdown(enrich.activeKey.expiresAt)}
+                        {activeCountdown}
                       </span>
                       <span className="text-[10px] text-red-500">còn lại trong phiên</span>
                     </div>
