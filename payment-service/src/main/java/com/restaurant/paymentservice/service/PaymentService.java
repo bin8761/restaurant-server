@@ -119,6 +119,40 @@ public class PaymentService {
         Integer tableId = parseRequiredInt(payload, "table_id");
         String tableKey = asString(payload.get("table_key"));
         BigDecimal amount = parseRequiredAmount(payload.get("amount"));
+        LocalDateTime now = LocalDateTime.now();
+
+        validateOrderNotPaid(orderId);
+
+        Optional<PaymentTransaction> latestActiveTxOpt = paymentTransactionRepository
+                .findTopByProviderAndOrderIdAndStatusInOrderByCreatedAtDesc(
+                        "sepay",
+                        orderId,
+                        List.of("PENDING", "PAID_PENDING_SYNC")
+                );
+        if (latestActiveTxOpt.isPresent()) {
+            PaymentTransaction latestActiveTx = latestActiveTxOpt.get();
+            boolean isExpiredPending = "PENDING".equals(latestActiveTx.getStatus())
+                    && latestActiveTx.getExpireAt() != null
+                    && latestActiveTx.getExpireAt().isBefore(now);
+
+            if (isExpiredPending) {
+                latestActiveTx.setStatus("EXPIRED");
+                paymentTransactionRepository.save(latestActiveTx);
+            } else {
+                log.info("Reuse existing SePay transaction for orderId={}, txRef={}, status={}",
+                        orderId,
+                        latestActiveTx.getTransactionRef(),
+                        latestActiveTx.getStatus());
+                return toCreateSepayResponse(latestActiveTx, true);
+            }
+        }
+
+        Optional<PaymentTransaction> latestPaidTxOpt = paymentTransactionRepository
+                .findTopByProviderAndOrderIdAndStatusOrderByCreatedAtDesc("sepay", orderId, "PAID");
+        if (latestPaidTxOpt.isPresent()) {
+            PaymentTransaction latestPaidTx = latestPaidTxOpt.get();
+            throw new RuntimeException("Don hang da thanh toan qua SePay: " + latestPaidTx.getTransactionRef());
+        }
 
         createPaymentRequest(orderId, tableId, tableKey, amount);
 
@@ -162,18 +196,7 @@ public class PaymentService {
         wsPayload.put("amount", tx.getAmount());
         socketService.emitPaymentStatusUpdated(wsPayload);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("provider", "sepay");
-        result.put("transaction_ref", tx.getTransactionRef());
-        result.put("provider_reference", tx.getProviderReference());
-        result.put("status", tx.getStatus());
-        result.put("amount", tx.getAmount());
-        result.put("expire_at", tx.getExpireAt());
-        result.put("qr_content", tx.getQrContent());
-        result.put("qr_image_url", tx.getQrImageUrl());
-        result.put("pay_url", tx.getPayUrl());
-        return result;
+        return toCreateSepayResponse(tx, false);
     }
 
     @Transactional
@@ -624,6 +647,22 @@ public class PaymentService {
                 webhookAmount,
                 candidates.stream().map(PaymentTransaction::getTransactionRef).toList());
         return candidates.get(0);
+    }
+
+    private Map<String, Object> toCreateSepayResponse(PaymentTransaction tx, boolean reused) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("provider", "sepay");
+        result.put("transaction_ref", tx.getTransactionRef());
+        result.put("provider_reference", tx.getProviderReference());
+        result.put("status", tx.getStatus());
+        result.put("amount", tx.getAmount());
+        result.put("expire_at", tx.getExpireAt());
+        result.put("qr_content", tx.getQrContent());
+        result.put("qr_image_url", tx.getQrImageUrl());
+        result.put("pay_url", tx.getPayUrl());
+        result.put("reused", reused);
+        return result;
     }
 
     @SuppressWarnings("unchecked")

@@ -26,4 +26,12 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     List<PaymentTransaction> findTop20ByProviderAndStatusInOrderByCreatedAtDesc(String provider,
                                                                                  List<String> statuses);
+
+    Optional<PaymentTransaction> findTopByProviderAndOrderIdAndStatusInOrderByCreatedAtDesc(String provider,
+                                                                                              Integer orderId,
+                                                                                              List<String> statuses);
+
+    Optional<PaymentTransaction> findTopByProviderAndOrderIdAndStatusOrderByCreatedAtDesc(String provider,
+                                                                                           Integer orderId,
+                                                                                           String status);
 }
