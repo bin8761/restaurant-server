@@ -1,6 +1,6 @@
 ﻿Goal (incl. success criteria):
-- Trên trang QR đặt món, toàn bộ chữ hiển thị phải là tiếng Việt có dấu.
-- Kiểm tra và chỉnh CSS để phần hiển thị bàn luôn thấy rõ trên mobile.
+- Đổi nút "Yêu cầu thanh toán" thành "Thanh toán" trên trang QR.
+- Rà soát và sửa các chuỗi tiếng Việt không dấu còn lại thành có dấu.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -40,10 +40,9 @@ State:
     - Đã cập nhật toàn bộ chuỗi hiển thị sang tiếng Việt có dấu trong `app.js`.
     - Đã thêm CSS mobile để header hiển thị rõ thông tin bàn.
   - Now:
-    - Chờ xác nhận có commit/push các thay đổi mới hay không.
+    - Đã đổi nút "Yêu cầu thanh toán" -> "Thanh toán" và sửa nốt chữ không dấu (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
-    - Kiểm tra UI trên mobile nếu cần.
 
 Open questions (`UNCONFIRMED` if needed):
 - UNCONFIRMED: None.

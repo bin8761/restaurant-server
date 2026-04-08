@@ -544,7 +544,7 @@ function renderCart() {
           <p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>
         </div>
         <div class="cart-item-actions">
-          <button class="cart-item-remove" onclick="removeFromCart(${index})">Xoa</button>
+          <button class="cart-item-remove" onclick="removeFromCart(${index})">Xóa</button>
           <div class="quantity-selector">
             <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
             <span class="quantity-value">${item.quantity}</span>
@@ -597,7 +597,7 @@ function renderOrders() {
     <div class="order-card">
       <div class="order-card-header">
         <div class="order-card-info">
-          <span class="order-id">Don #${order.id}</span>
+          <span class="order-id">Đơn #${order.id}</span>
           <span class="order-time">${formatDateTime(order.order_time)}</span>
         </div>
         <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Đang xử lý'}</span>
