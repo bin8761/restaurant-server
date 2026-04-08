@@ -3,6 +3,7 @@ package com.restaurant.paymentservice.repository;
 import com.restaurant.paymentservice.entity.PaymentTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,4 +19,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     List<PaymentTransaction> findByProviderAndStatusAndExpireAtBefore(String provider, String status, LocalDateTime now);
 
     List<PaymentTransaction> findTop100ByProviderAndStatusOrderByCreatedAtAsc(String provider, String status);
+
+    List<PaymentTransaction> findTop20ByProviderAndStatusInAndAmountOrderByCreatedAtDesc(String provider,
+                                                                                          List<String> statuses,
+                                                                                          BigDecimal amount);
 }

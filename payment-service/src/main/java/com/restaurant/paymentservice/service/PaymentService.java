@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -189,15 +190,22 @@ public class PaymentService {
             throw new SecurityException("Invalid SePay signature");
         }
 
-        Map<String, Object> data = parseJsonMap(rawPayload);
-        String transactionRef = extractTransactionRefFromWebhook(data);
+        Map<String, Object> parsedPayload = parseJsonMap(rawPayload);
+        Map<String, Object> data = unwrapWebhookData(parsedPayload);
+        String transactionRef = firstNonBlank(
+                extractTransactionRefFromWebhook(data),
+                extractTransactionRefFromWebhook(parsedPayload)
+        );
         String providerReference = firstNonBlank(
                 asString(data.get("provider_reference")),
                 asString(data.get("providerReference")),
-                asString(data.get("id"))
+                asString(data.get("id")),
+                asString(parsedPayload.get("provider_reference")),
+                asString(parsedPayload.get("providerReference")),
+                asString(parsedPayload.get("id"))
         );
 
-        PaymentTransaction tx = findTransaction(transactionRef, providerReference);
+        PaymentTransaction tx = findTransaction(transactionRef, providerReference, data, parsedPayload);
         if (tx == null) {
             log.warn("SePay webhook transaction not found: transactionRef={}, providerReference={}",
                     transactionRef,
@@ -206,11 +214,19 @@ public class PaymentService {
         }
 
         tx.setRawWebhookPayload(rawPayload);
+        if ((tx.getProviderReference() == null || tx.getProviderReference().isBlank())
+                && providerReference != null
+                && !providerReference.isBlank()) {
+            tx.setProviderReference(providerReference);
+        }
 
         String incomingStatus = normalizeSepayStatus(firstNonBlank(
                 asString(data.get("status")),
                 asString(data.get("payment_status")),
-                asString(data.get("transaction_status"))
+                asString(data.get("transaction_status")),
+                asString(parsedPayload.get("status")),
+                asString(parsedPayload.get("payment_status")),
+                asString(parsedPayload.get("transaction_status"))
         ));
 
         if ("PAID".equals(tx.getStatus()) && "PAID".equals(incomingStatus)) {
@@ -469,7 +485,10 @@ public class PaymentService {
         }
     }
 
-    private PaymentTransaction findTransaction(String transactionRef, String providerReference) {
+    private PaymentTransaction findTransaction(String transactionRef,
+                                               String providerReference,
+                                               Map<String, Object> data,
+                                               Map<String, Object> parsedPayload) {
         if (transactionRef != null && !transactionRef.isBlank()) {
             Optional<PaymentTransaction> byRef = paymentTransactionRepository.findByTransactionRef(transactionRef);
             if (byRef.isPresent()) {
@@ -479,7 +498,123 @@ public class PaymentService {
         if (providerReference != null && !providerReference.isBlank()) {
             return paymentTransactionRepository.findByProviderAndProviderReference("sepay", providerReference).orElse(null);
         }
+
+        BigDecimal webhookAmount = extractWebhookAmount(data, parsedPayload);
+        if (webhookAmount == null) {
+            return null;
+        }
+
+        List<PaymentTransaction> candidates = paymentTransactionRepository
+                .findTop20ByProviderAndStatusInAndAmountOrderByCreatedAtDesc(
+                        "sepay",
+                        List.of("PENDING", "PAID_PENDING_SYNC", "EXPIRED"),
+                        webhookAmount
+                )
+                .stream()
+                .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(LocalDateTime.now().minusHours(6)))
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        List<PaymentTransaction> preferred = candidates.stream()
+                .filter(tx -> "PENDING".equals(tx.getStatus()) || "PAID_PENDING_SYNC".equals(tx.getStatus()))
+                .collect(Collectors.toList());
+
+        if (preferred.size() == 1) {
+            PaymentTransaction matched = preferred.get(0);
+            log.warn("SePay webhook matched by amount fallback: txRef={}, amount={}, providerReference={}",
+                    matched.getTransactionRef(),
+                    webhookAmount,
+                    providerReference);
+            return matched;
+        }
+
+        if (candidates.size() == 1) {
+            PaymentTransaction matched = candidates.get(0);
+            log.warn("SePay webhook matched by amount fallback: txRef={}, amount={}, providerReference={}",
+                    matched.getTransactionRef(),
+                    webhookAmount,
+                    providerReference);
+            return matched;
+        }
+
+        log.warn("SePay webhook amount fallback ambiguous: amount={}, candidateRefs={}",
+                webhookAmount,
+                candidates.stream().map(PaymentTransaction::getTransactionRef).toList());
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> unwrapWebhookData(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) {
+            return Map.of();
+        }
+        Object nested = payload.get("data");
+        if (nested instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return payload;
+    }
+
+    private BigDecimal extractWebhookAmount(Map<String, Object> data, Map<String, Object> parsedPayload) {
+        BigDecimal amount = firstAmount(data,
+                "amount",
+                "transfer_amount",
+                "transferAmount",
+                "money",
+                "value",
+                "total_amount");
+        if (amount != null) {
+            return amount;
+        }
+        return firstAmount(parsedPayload,
+                "amount",
+                "transfer_amount",
+                "transferAmount",
+                "money",
+                "value",
+                "total_amount");
+    }
+
+    private BigDecimal firstAmount(Map<String, Object> source, String... keys) {
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+        for (String key : keys) {
+            BigDecimal parsed = parseAmountValue(source.get(key));
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal parseAmountValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return new BigDecimal(number.toString());
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isBlank()) {
+            return null;
+        }
+
+        String digitsOnly = text.replaceAll("[^0-9-]", "");
+        if (digitsOnly.isBlank() || "-".equals(digitsOnly)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(digitsOnly);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String normalizeSepayStatus(String value) {
