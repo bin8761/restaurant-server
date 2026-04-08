@@ -22,6 +22,7 @@ const state = {
   paymentMethod: 'cash',
   sepayPollingTimer: null,
   sepayTransactionRef: null,
+  imagesEnabled: null,
 };
 
 const recentToasts = new Map();
@@ -106,7 +107,7 @@ function getGatewayUrl() {
   return 'https://gateway-production-16f9.up.railway.app';
 }
 
-function getImageUrl(imageUrl) {
+function buildImageUrl(imageUrl) {
   if (!imageUrl) return '';
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
 
@@ -120,6 +121,40 @@ function getImageUrl(imageUrl) {
     return `${baseUrl}/api/images/foods/${imageUrl}`;
   }
   return imageUrl;
+}
+
+async function detectImageServiceAvailability(foods = []) {
+  if (state.imagesEnabled !== null) return state.imagesEnabled;
+
+  const sample = (foods || []).find((food) => food?.image_url);
+  if (!sample) {
+    state.imagesEnabled = false;
+    return false;
+  }
+
+  const sampleUrl = buildImageUrl(sample.image_url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const res = await fetch(sampleUrl, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    state.imagesEnabled = res.ok;
+  } catch (_err) {
+    state.imagesEnabled = false;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  return state.imagesEnabled;
+}
+
+function getImageUrl(imageUrl) {
+  if (state.imagesEnabled === false) return '';
+  return buildImageUrl(imageUrl);
 }
 
 function getAllMenuFoods() {
@@ -783,6 +818,7 @@ async function loadMenu() {
     fetchJson('/api/menu/categories'),
     fetchJson('/api/menu/foods')
   ]);
+  await detectImageServiceAvailability(foods);
   state.menuCategories = categories.map(c => ({
     ...c, 
     foods: foods.filter(f => String(f.category_id) === String(c.id))
@@ -795,6 +831,7 @@ async function loadMenu() {
 
 async function loadBuffetMenu() {
   const foods = await fetchJson('/api/menu/foods');
+  await detectImageServiceAvailability(foods);
   const categories = await fetchJson('/api/menu/categories');
   const mapped = categories.map(c => ({
     ...c, 
