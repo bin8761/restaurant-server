@@ -73,7 +73,7 @@ public class SepayPaymentProvider implements PaymentProvider {
                     userApiMode ? "userapi" : "legacy",
                     transactionRef,
                     ex.toString());
-            throw new RuntimeException("SePay timeout/connection error: " + ex.getClass().getSimpleName(), ex);
+            throw new RuntimeException("SePay request failed: " + ex.getClass().getSimpleName(), ex);
         }
 
         Map<String, Object> parsed = parseResponse(response.getBody());
@@ -199,9 +199,12 @@ public class SepayPaymentProvider implements PaymentProvider {
             return explicitCreateUrl;
         }
 
-        String bankAccountId = resolveBankAccountId();
-        String bankCode = resolveBankCode();
-        if (!bankAccountId.isBlank() && !bankCode.isBlank()) {
+        if (isUserApiEnabled()) {
+            String bankAccountId = resolveBankAccountId();
+            String bankCode = resolveBankCode();
+            if (bankAccountId.isBlank() || bankCode.isBlank()) {
+                throw new RuntimeException("SePay User API mode requires SEPAY_BANK_ACCOUNT_ID and SEPAY_BANK_CODE");
+            }
             String userApiBase = resolveUserApiBaseUrl();
             return trimSlash(userApiBase) + "/userapi/" + bankCode + "/" + bankAccountId + "/orders";
         }
@@ -334,6 +337,15 @@ public class SepayPaymentProvider implements PaymentProvider {
             return "techcombank";
         }
         return normalized;
+    }
+
+    private boolean isUserApiEnabled() {
+        String envEnabled = normalizeSecret(System.getenv("SEPAY_USERAPI_ENABLED"));
+        if (!envEnabled.isBlank()) {
+            String normalized = envEnabled.toLowerCase();
+            return normalized.equals("true") || normalized.equals("1") || normalized.equals("yes") || normalized.equals("on");
+        }
+        return properties.isUserapiEnabled();
     }
 
     private String normalizeSecret(String value) {

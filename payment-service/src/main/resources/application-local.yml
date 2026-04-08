@@ -11,6 +11,7 @@ payment:
   sepay:
     create-url: ""
     userapi-base-url: "https://my.sepay.vn"
+    userapi-enabled: false
     bank-code: ""
     bank-account-id: ""
     http-connect-timeout-ms: 8000

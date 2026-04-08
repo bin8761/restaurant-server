@@ -15,6 +15,7 @@ public class SepayProperties {
     private String createPath = "/v1/payments/create";
     private String verifyPath = "/v1/payments/verify";
     private String userapiBaseUrl = "https://my.sepay.vn";
+    private boolean userapiEnabled = false;
     private String bankCode = "";
     private String bankAccountId = "";
     private int httpConnectTimeoutMs = 8000;
