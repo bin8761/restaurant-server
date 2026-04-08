@@ -704,7 +704,7 @@ function openFoodModal(foodId, isBuffet = false) {
   document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Mon buffet' : 'Mon an');
   document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
-  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Goi mon' : 'Them vao gio';
+  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi món' : 'Thêm món';
 
   document.getElementById('food-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
