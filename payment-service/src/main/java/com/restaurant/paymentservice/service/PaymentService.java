@@ -14,6 +14,7 @@ import com.restaurant.paymentservice.repository.PaymentRequestRepository;
 import com.restaurant.paymentservice.repository.PaymentTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -432,7 +433,17 @@ public class PaymentService {
             throw new RuntimeException("Thieu thong tin ban hoac table_key de hoan tat thanh toan");
         }
 
-        List<Integer> allOrderIds = paymentRequestRepository.findWaitingOrderIdsForSession(finalTableId, finalTableKey);
+        List<Integer> allOrderIds;
+        try {
+            allOrderIds = paymentRequestRepository.findWaitingOrderIdsForSession(finalTableId, finalTableKey);
+        } catch (DataAccessException ex) {
+            log.warn("Cannot query waiting order ids by session from local db, fallback current order only: tableId={}, tableKey={}, orderId={}, err={}",
+                    finalTableId,
+                    finalTableKey,
+                    orderId,
+                    ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage());
+            allOrderIds = List.of(orderId);
+        }
         if (allOrderIds == null || allOrderIds.isEmpty()) {
             allOrderIds = List.of(orderId);
         }
