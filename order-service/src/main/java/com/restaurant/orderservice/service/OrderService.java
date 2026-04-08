@@ -276,9 +276,12 @@ public class OrderService {
                 log.error("❌ Không thể lấy giá món từ menu-service: {}", e.getMessage());
                 throw new RuntimeException("Không thể lấy giá món từ menu-service, vui lòng thử lại sau");
             }
-            List<Integer> missingPriceFoodIds = foodIds.stream()
-                    .filter(id -> !foodPriceMap.containsKey(id) || foodPriceMap.get(id) == null)
-                    .toList();
+            List<Integer> missingPriceFoodIds = new ArrayList<>();
+            for (Integer id : foodIds) {
+                if (!foodPriceMap.containsKey(id) || foodPriceMap.get(id) == null) {
+                    missingPriceFoodIds.add(id);
+                }
+            }
             if (!missingPriceFoodIds.isEmpty()) {
                 throw new RuntimeException("Thiếu giá cho món: " + missingPriceFoodIds);
             }
@@ -695,3 +698,5 @@ public class OrderService {
         return result;
     }
 }
+
+
