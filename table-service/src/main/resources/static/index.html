@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -269,7 +269,7 @@
         </svg>
         <span class="nav-label">Menu</span>
       </button>
-      <button class="nav-item" data-tab="cart" onclick="switchTab('cart')">
+      <button id="nav-item-cart" class="nav-item" data-tab="cart" onclick="switchTab('cart')">
         <div class="nav-icon-wrapper">
           <svg class="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="9" cy="21" r="1"/>
@@ -327,7 +327,7 @@
           <p id="food-modal-desc" class="food-modal-desc"></p>
           <p id="food-modal-price" class="food-modal-price"></p>
         </div>
-        <div class="food-modal-actions">
+        <div id="food-modal-actions" class="food-modal-actions">
           <div class="quantity-selector">
             <button class="quantity-btn" onclick="decreaseModalQuantity()">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -346,6 +346,14 @@
             Thêm vào giỏ
           </button>
         </div>
+        <div id="food-modal-self-service" class="food-modal-self-service hidden">
+          <div class="self-service-message">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Món ăn trong gói - Quý khách vui lòng lấy tại quầy</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -362,18 +370,120 @@
         </svg>
       </button>
       <div class="buffet-confirm-content">
-        <div class="buffet-confirm-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
+        <!-- Package Info Header -->
+        <div class="buffet-confirm-pkg-header">
+          <div class="buffet-confirm-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </div>
+          <h3 class="buffet-confirm-title">Xác nhận đặt Buffet</h3>
+          <p id="buffet-confirm-pkg-name" class="buffet-confirm-pkg-name"></p>
+          <div class="buffet-confirm-badges">
+            <span id="buffet-confirm-duration-badge" class="buffet-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span id="buffet-confirm-duration-text">2 giờ</span>
+            </span>
+            <span class="buffet-badge buffet-badge-green">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Không giới hạn món
+            </span>
+          </div>
         </div>
-        <h3 class="buffet-confirm-title">Xác nhận đặt Buffet</h3>
-        <div id="buffet-confirm-details" class="buffet-confirm-details">
-          <!-- Details will be rendered here -->
+
+        <!-- Price Info -->
+        <div class="buffet-confirm-price-info">
+          <div class="buffet-confirm-price-row">
+            <div class="buffet-confirm-price-left">
+              <span class="buffet-price-label">Người lớn</span>
+              <span class="buffet-price-sublabel">(từ 11 tuổi trở lên)</span>
+            </div>
+            <span id="buffet-adult-price-display" class="buffet-price-tag"></span>
+          </div>
+          <div class="buffet-confirm-price-row">
+            <div class="buffet-confirm-price-left">
+              <span class="buffet-price-label">Trẻ em</span>
+              <span class="buffet-price-sublabel">(4 - 10 tuổi)</span>
+            </div>
+            <span id="buffet-child-price-display" class="buffet-price-tag buffet-price-tag-child"></span>
+          </div>
+          <p class="buffet-free-note">⭐ Trẻ dưới 4 tuổi: Miễn phí</p>
         </div>
-        <button class="btn btn-primary btn-lg btn-full" onclick="confirmBuffetOrder()">
-          Xác nhận đặt Buffet
-        </button>
+
+        <!-- Guest Count Selectors -->
+        <div class="buffet-guest-selectors">
+          <div class="buffet-guest-row">
+            <div class="buffet-guest-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <div>
+                <span class="buffet-guest-label">Người lớn</span>
+                <span class="buffet-guest-note">Tối thiểu 1 người</span>
+              </div>
+            </div>
+            <div class="buffet-qty-selector">
+              <button class="buffet-qty-btn" onclick="updateBuffetGuests('adults', -1)">−</button>
+              <span id="buffet-adults-count" class="buffet-qty-value">2</span>
+              <button class="buffet-qty-btn buffet-qty-btn-plus" onclick="updateBuffetGuests('adults', 1)">+</button>
+            </div>
+          </div>
+          <div class="buffet-guest-row">
+            <div class="buffet-guest-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <div>
+                <span class="buffet-guest-label">Trẻ em</span>
+                <span class="buffet-guest-note">4 - 10 tuổi</span>
+              </div>
+            </div>
+            <div class="buffet-qty-selector">
+              <button class="buffet-qty-btn" onclick="updateBuffetGuests('children', -1)">−</button>
+              <span id="buffet-children-count" class="buffet-qty-value">0</span>
+              <button class="buffet-qty-btn buffet-qty-btn-plus" onclick="updateBuffetGuests('children', 1)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total Summary -->
+        <div class="buffet-confirm-total-box">
+          <div class="buffet-total-rows">
+            <div id="buffet-adult-total-row" class="buffet-total-row"></div>
+            <div id="buffet-child-total-row" class="buffet-total-row" style="display:none;"></div>
+          </div>
+          <div class="buffet-total-divider"></div>
+          <div class="buffet-grand-total-row">
+            <span class="buffet-grand-total-label">Tổng thanh toán</span>
+            <span id="buffet-grand-total" class="buffet-grand-total-value"></span>
+          </div>
+          <p class="buffet-total-note">* Giá áp dụng cho cả phiên buffet, chưa bao gồm đồ uống</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="buffet-confirm-actions">
+          <button class="btn btn-ghost" onclick="closeBuffetConfirmModal()">Hủy</button>
+          <button class="btn btn-primary btn-lg" onclick="confirmBuffetOrder()" style="flex:1;">
+            Xác nhận đặt Buffet
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Buffet Menu Modal (Show included dishes) -->
+  <div id="buffet-menu-modal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeBuffetMenuModal()"></div>
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <button class="modal-close" onclick="closeBuffetMenuModal()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18"/>
+          <path d="M6 6l12 12"/>
+        </svg>
+      </button>
+      <div class="buffet-menu-detail-content">
+        <h3 id="buffet-menu-title" class="buffet-menu-title" style="font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 700; margin-bottom: 5px; color: #1a1a1a;">Thực đơn Buffet</h3>
+        <p id="buffet-menu-pkg-desc" style="font-size: 13px; color: #666; margin-bottom: 15px;"></p>
+        <div id="buffet-menu-items-list" class="buffet-menu-items-list" style="max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 5px;">
+          <!-- Items will be rendered here -->
+        </div>
       </div>
     </div>
   </div>

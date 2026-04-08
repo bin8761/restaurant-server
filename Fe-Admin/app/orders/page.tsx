@@ -87,6 +87,9 @@ interface OrderSessionSummary {
     payment_status: string;
     buffet_active: boolean;
     buffet_package_name?: string;
+    buffet_expiry_time?: string;
+    num_adults?: number;
+    num_children?: number;
     last_order_time: string;
 }
 
@@ -105,7 +108,9 @@ interface Order {
     total: number;
     is_buffet: boolean;
     payment_status: string;
-    updated_at: string;
+    num_adults: number | null;
+    num_children: number | null;
+    buffet_expiry_time: string | null;
     details: OrderDetail[];
 }
 
@@ -663,7 +668,9 @@ export default function OrdersManagementPage() {
                                     total: session.total_amount,
                                     is_buffet: session.buffet_active,
                                     payment_status: session.payment_status,
-                                    updated_at: session.last_order_time,
+                                    num_adults: session.num_adults ?? null,
+                                    num_children: session.num_children ?? null,
+                                    buffet_expiry_time: session.buffet_expiry_time ?? null,
                                     details: [],
                                 };
                                 return (
@@ -741,7 +748,19 @@ export default function OrdersManagementPage() {
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Chi tiết session bàn {selectedOrder?.table_id}</DialogTitle>
-                        <DialogDescription>Thông tin chi tiết các đơn trong cùng session</DialogDescription>
+                        <DialogDescription>
+                            {selectedOrder?.is_buffet && selectedSessionDetail?.summary && (
+                                <div className="mt-1 flex gap-2">
+                                    <Badge variant="outline" className="text-xs bg-blue-50">
+                                        👨 {selectedSessionDetail.summary.num_adults || selectedOrder.num_adults || 0} Người lớn
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-green-50">
+                                        🧒 {selectedSessionDetail.summary.num_children || selectedOrder.num_children || 0} Trẻ em
+                                    </Badge>
+                                </div>
+                            )}
+                            Thông tin chi tiết các đơn trong cùng session
+                        </DialogDescription>
                     </DialogHeader>
                     {selectedOrder && (
                         <div className="space-y-4">
@@ -758,6 +777,14 @@ export default function OrdersManagementPage() {
                                     <span className="text-muted-foreground">Thời gian:</span>
                                     <span className="ml-2 font-medium">{formatDateTime(selectedSessionOrders[0]?.order_time || selectedOrder.order_time)}</span>
                                 </div>
+                                {selectedOrder.is_buffet && (selectedSessionDetail?.summary.buffet_expiry_time || selectedOrder.buffet_expiry_time) && (
+                                    <div>
+                                        <span className="text-muted-foreground">Hết giờ:</span>
+                                        <span className="ml-2 font-medium text-red-600">
+                                            {formatDateTime(selectedSessionDetail?.summary.buffet_expiry_time || selectedOrder.buffet_expiry_time || "")}
+                                        </span>
+                                    </div>
+                                )}
                                 <div>
                                     <span className="text-muted-foreground">Cập nhật:</span>
                                     <span className="ml-2 font-medium">{formatDateTime(selectedSessionOrders[selectedSessionOrders.length - 1]?.updated_at || selectedOrder.updated_at)}</span>
@@ -771,23 +798,65 @@ export default function OrdersManagementPage() {
                             </div>
                             <Separator />
                             <div>
-                                <h4 className="font-medium mb-2">Món ăn trong session</h4>
-                                <div className="space-y-2">
-                                    {selectedSessionOrders.flatMap((order) =>
-                                        order.details.map((item) => (
-                                            <div key={`${order.id}-${item.id}`} className="flex justify-between items-center text-sm gap-4">
-                                                <div className="min-w-0">
-                                                    <div>
-                                                        {item.food_name || `Món #${item.food_id}`} x{item.quantity}
+                                <h4 className="font-medium mb-3">Chi tiết phiên</h4>
+                                <div className="space-y-3">
+                                    {selectedSessionOrders.map((order) => {
+                                        const isBuffetActivation = order.is_buffet && (!order.details || order.details.length === 0);
+                                        if (isBuffetActivation) {
+                                            return (
+                                                <div key={order.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-lg">⭐</span>
+                                                            <span className="font-semibold text-amber-800">Kích hoạt Buffet</span>
+                                                        </div>
+                                                        <span className="font-bold text-amber-900">{formatCurrency(order.total)}</span>
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Đơn #{order.id}
-                                                        {itemStatuses[item.id]?.status ? ` · ${itemStatuses[item.id].status}` : ""}
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                                            👨 {order.num_adults ?? 0} Người lớn
+                                                        </span>
+                                                        {(order.num_children ?? 0) > 0 && (
+                                                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                                                                🧒 {order.num_children} Trẻ em
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <span className="font-medium whitespace-nowrap">{formatCurrency(item.price * item.quantity)}</span>
+                                            );
+                                        }
+
+                                        if (!order.details || order.details.length === 0) return null;
+
+                                        return (
+                                            <div key={order.id} className="space-y-1">
+                                                <p className="text-xs text-muted-foreground font-medium">Đơn #{order.id}</p>
+                                                {order.details.map((item) => (
+                                                    <div key={`${order.id}-${item.id}`} className="flex justify-between items-center text-sm gap-4 pl-2 border-l-2 border-muted">
+                                                        <div className="min-w-0">
+                                                            <div>
+                                                                {item.food_name || `Món #${item.food_id}`} ×{item.quantity}
+                                                            </div>
+                                                            {itemStatuses[item.id]?.status && (
+                                                                <div className="text-xs text-muted-foreground">
+                                                                    {itemStatuses[item.id].status}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="font-medium whitespace-nowrap">
+                                                            {item.price === 0 ? (
+                                                                <span className="text-green-600 text-xs font-semibold">MIỄN PHÍ</span>
+                                                            ) : (
+                                                                formatCurrency(item.price * item.quantity)
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))
+                                        );
+                                    })}
+                                    {selectedSessionOrders.length === 0 && (
+                                        <p className="text-sm text-muted-foreground text-center py-4">Chưa có thông tin chi tiết</p>
                                     )}
                                 </div>
                             </div>

@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -117,6 +119,9 @@ public class OrderService {
                 .buffet_session_id(order.getBuffetSessionId())
                 .buffet_package_id(order.getBuffetPackageId())
                 .buffet_package_name(order.getBuffetPackageName())
+                .num_adults(order.getNumAdults())
+                .num_children(order.getNumChildren())
+                .buffet_expiry_time(order.getBuffetExpiryTime())
                 .payment_status(order.getPaymentStatus())
                 .updated_at(order.getUpdatedAt())
                 .details(detailDtos)
@@ -188,6 +193,12 @@ public class OrderService {
 
         Order latestOrder = orders.stream().reduce((first, second) -> second).orElse(null);
 
+        LocalDateTime expiryTime = buffetOrder != null ? buffetOrder.getBuffetExpiryTime() : null;
+        Long secondsRemaining = null;
+        if (expiryTime != null) {
+            secondsRemaining = java.time.Duration.between(LocalDateTime.now(), expiryTime).toSeconds();
+        }
+
         return OrderSessionSummaryDto.builder()
                 .representative_order_id(orders.isEmpty() ? null : orders.get(0).getId())
                 .table_id(tableId)
@@ -199,6 +210,10 @@ public class OrderService {
                 .payment_status(resolveSessionPaymentStatus(orders))
                 .buffet_active(buffetOrder != null && !"paid".equalsIgnoreCase(buffetOrder.getPaymentStatus()))
                 .buffet_package_name(buffetOrder != null ? buffetOrder.getBuffetPackageName() : null)
+                .buffet_expiry_time(expiryTime)
+                .num_adults(buffetOrder != null ? buffetOrder.getNumAdults() : null)
+                .num_children(buffetOrder != null ? buffetOrder.getNumChildren() : null)
+                .seconds_remaining(secondsRemaining)
                 .last_order_time(latestOrder != null ? latestOrder.getOrderTime() : null)
                 .build();
     }
@@ -288,44 +303,95 @@ public class OrderService {
             }
         }
 
-        BigDecimal total = BigDecimal.ZERO;
-        if (isBuffetActivationOrder(request)) {
-            total = request.getBuffet_price() != null ? request.getBuffet_price() : new BigDecimal("299000");
-            log.info("📊 Buffet order - Price: {}", total);
-        } else if (isBuffetFoodOrder(request)) {
-            total = BigDecimal.ZERO;
-            log.info("📊 Buffet item order - session={}, total={}", request.getBuffet_session_id(), total);
-        } else {
-            for (OrderItemDto item : request.getItems()) {
-                BigDecimal price = foodPriceMap.get(item.getFood_id());
-                if (price == null) {
-                    log.error("❌ Food not found in price map - Food ID: {}, Available IDs: {}", item.getFood_id(), foodPriceMap.keySet());
-                    throw new RuntimeException("Không tìm thấy món " + item.getFood_id());
-                }
-                BigDecimal itemTotal = price.multiply(new BigDecimal(item.getQuantity()));
-                total = total.add(itemTotal);
-                log.info("📦 Adding item - Food ID: {}, Price: {}, Quantity: {}, Item Total: {}",
-                        item.getFood_id(), price, item.getQuantity(), itemTotal);
-            }
-            log.info("✅ Order total calculated: {} from {} items", total, request.getItems().size());
-        }
-
         Order order = new Order();
         order.setTableId(request.getTable_id());
         order.setUserId(request.getUser_id());
-        order.setTotal(total);
         order.setTableKey(request.getTable_key());
         order.setIsBuffet(request.getIs_buffet());
         order.setBuffetPackageId(request.getBuffet_package_id());
         order.setBuffetPackageName(request.getBuffet_package_name());
+        order.setNumAdults(request.getNum_adults());
+        order.setNumChildren(request.getNum_children());
         order.setStatus("Chờ xác nhận");
         order.setPaymentStatus("unpaid");
 
+        BigDecimal total = BigDecimal.ZERO;
         if (isBuffetActivationOrder(request)) {
-            // BUG-022: Luôn generate buffet_session_id server-side, không tin FE
-            String buffetSessionId = UUID.randomUUID().toString();
-            order.setBuffetSessionId(buffetSessionId);
+            // Tiered pricing logic
+            BigDecimal priceAdult = new BigDecimal("299000");
+            BigDecimal priceChild = new BigDecimal("149000");
+
+            if (request.getBuffet_package_id() != null) {
+                try {
+                    Map<String, Object> pkg = menuClient.getBuffetPackageById(request.getBuffet_package_id());
+                    if (pkg != null) {
+                        if (pkg.get("price") != null) priceAdult = new BigDecimal(pkg.get("price").toString());
+                        // FIX: Use snake_case for price_child
+                        Object childPriceObj = pkg.get("price_child") != null ? pkg.get("price_child") : pkg.get("priceChild");
+                        if (childPriceObj != null) priceChild = new BigDecimal(childPriceObj.toString());
+                        log.info("💰 Extracted buffet prices - Adult: {}, Child: {}", priceAdult, priceChild);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to fetch buffet package details, using defaults: {}", e.getMessage());
+                }
+            }
+
+            int adults = request.getNum_adults() != null ? request.getNum_adults() : 1;
+            int children = request.getNum_children() != null ? request.getNum_children() : 0;
+
+            total = priceAdult.multiply(new BigDecimal(adults))
+                    .add(priceChild.multiply(new BigDecimal(children)));
+
+            log.info("📊 Buffet order - Adults: {}, Children: {}, Total Price: {}", adults, children, total);
+            
+            // Calculate expiry time
+            int duration = 120; // Default 2 hours
+            try {
+                Map<String, Object> pkg = menuClient.getBuffetPackageById(request.getBuffet_package_id());
+                if (pkg != null) {
+                    // FIX: Use snake_case for duration_minutes
+                    Object durObj = pkg.get("duration_minutes") != null ? pkg.get("duration_minutes") : pkg.get("durationMinutes");
+                    if (durObj != null) {
+                        duration = ((Number) durObj).intValue();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to fetch buffet duration, using default 120min: {}", e.getMessage());
+            }
+            order.setBuffetExpiryTime(LocalDateTime.now().plusMinutes(duration));
+            log.info("⏰ Buffet session expires in {} minutes (at {})", duration, order.getBuffetExpiryTime());
+
+            // BUG-022: Luôn generate buffet_session_id server-side cho activation
+            order.setBuffetSessionId(UUID.randomUUID().toString());
+            
+            // Update guest counts in table reservation
+            try {
+                tableClient.updateReservationGuestCounts(request.getTable_id(), request.getNum_adults(), request.getNum_children());
+            } catch (Exception e) {
+                log.warn("Failed to update guest counts in reservation: {}", e.getMessage());
+            }
         } else if (isBuffetFoodOrder(request)) {
+            // ... (rest of the logic remains similar but uses the initialized order object)
+            total = BigDecimal.ZERO;
+            List<Map<String, Object>> foodDetails = menuClient.getFoodDetails(foodIds);
+            Map<Integer, Boolean> eligibilityMap = foodDetails.stream()
+                    .collect(Collectors.toMap(
+                            f -> f.get("id") != null ? ((Number) f.get("id")).intValue() : 0,
+                            f -> {
+                                // FIX: Use snake_case for is_buffet_eligible
+                                Object eligibleObj = f.get("is_buffet_eligible") != null ? f.get("is_buffet_eligible") : f.get("isBuffetEligible");
+                                return eligibleObj != null ? (Boolean) eligibleObj : true;
+                            }
+                    ));
+
+            for (OrderItemDto item : request.getItems()) {
+                Boolean isEligible = eligibilityMap.getOrDefault(item.getFood_id(), true);
+                if (!isEligible) {
+                    BigDecimal itemPrice = foodPriceMap.get(item.getFood_id());
+                    total = total.add(itemPrice.multiply(new BigDecimal(item.getQuantity())));
+                }
+            }
+            
             Order activeBuffetOrder = orderRepository
                     .findFirstByTableIdAndTableKeyAndIsBuffetTrueAndPaymentStatusNotAndBuffetSessionIdIsNotNullOrderByOrderTimeDesc(
                             request.getTable_id(),
@@ -343,7 +409,15 @@ public class OrderService {
             if (order.getBuffetPackageName() == null) {
                 order.setBuffetPackageName(activeBuffetOrder.getBuffetPackageName());
             }
+        } else {
+            for (OrderItemDto item : request.getItems()) {
+                BigDecimal price = foodPriceMap.get(item.getFood_id());
+                if (price == null) throw new RuntimeException("Không tìm thấy giá món " + item.getFood_id());
+                total = total.add(price.multiply(new BigDecimal(item.getQuantity())));
+            }
         }
+
+        order.setTotal(total);
 
         if (hasItems(request)) {
             for (OrderItemDto item : request.getItems()) {
@@ -353,7 +427,18 @@ public class OrderService {
                 detail.setQuantity(item.getQuantity());
 
                 if (Boolean.TRUE.equals(request.getIs_buffet())) {
-                    detail.setPrice(BigDecimal.ZERO);
+                    try {
+                        List<Map<String, Object>> fd = menuClient.getFoodDetails(List.of(item.getFood_id()));
+                        boolean isEligible = true;
+                        if (!fd.isEmpty()) {
+                            // FIX: Use snake_case for is_buffet_eligible
+                            Object eligibleObj = fd.get(0).get("is_buffet_eligible") != null ? fd.get(0).get("is_buffet_eligible") : fd.get(0).get("isBuffetEligible");
+                            isEligible = eligibleObj == null || (Boolean) eligibleObj;
+                        }
+                        detail.setPrice(isEligible ? BigDecimal.ZERO : foodPriceMap.get(item.getFood_id()));
+                    } catch (Exception e) {
+                        detail.setPrice(BigDecimal.ZERO);
+                    }
                 } else {
                     detail.setPrice(foodPriceMap.get(item.getFood_id()));
                 }
@@ -364,9 +449,9 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         try {
-            tableClient.updateTableStatus(request.getTable_id(), "Chờ xác nhận", false);
+            tableClient.updateTableStatus(request.getTable_id(), "Chờ xác nhận", Boolean.TRUE.equals(request.getIs_buffet()));
         } catch (Exception e) {
-            log.warn("Lỗi update table status, ignore for demo");
+            log.warn("Lỗi update table status: {}", e.getMessage());
         }
 
         Map<String, Object> payload = new HashMap<>();
@@ -709,6 +794,21 @@ public class OrderService {
 
         log.info("✅ Payment completed successfully - Table {} is now empty", tableId);
         return result;
+    }
+
+    private boolean isBuffetActivationOrder(OrderRequest request) {
+        return Boolean.TRUE.equals(request.getIs_buffet()) && 
+               (request.getItems() == null || request.getItems().isEmpty()) &&
+               request.getBuffet_session_id() == null;
+    }
+
+    private boolean isBuffetFoodOrder(OrderRequest request) {
+        return Boolean.TRUE.equals(request.getIs_buffet()) && 
+               request.getItems() != null && !request.getItems().isEmpty();
+    }
+
+    private boolean hasItems(OrderRequest request) {
+        return request.getItems() != null && !request.getItems().isEmpty();
     }
 }
 
