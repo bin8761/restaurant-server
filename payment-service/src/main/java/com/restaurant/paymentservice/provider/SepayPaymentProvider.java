@@ -48,14 +48,16 @@ public class SepayPaymentProvider implements PaymentProvider {
             return buildMockResponse(transactionRef, amount, description, expireAt);
         }
 
-        String url = trimSlash(properties.getBaseUrl()) + withLeadingSlash(properties.getCreatePath());
+        String baseUrl = resolveBaseUrl();
+        String createPath = resolveCreatePath();
+        String url = trimSlash(baseUrl) + withLeadingSlash(createPath);
         Map<String, Object> body = new HashMap<>();
         body.put("reference", transactionRef);
         body.put("amount", amount);
         body.put("content", description);
         body.put("description", description);
         body.put("expire_at", expireAt != null ? expireAt.toString() : null);
-        body.put("return_url", properties.getReturnUrl());
+        body.put("return_url", normalizeSecret(properties.getReturnUrl()));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -143,6 +145,38 @@ public class SepayPaymentProvider implements PaymentProvider {
             return tokenAlias;
         }
         return normalizeSecret(System.getenv("SEPAY_API_KEY"));
+    }
+
+    private String resolveBaseUrl() {
+        // Runtime env first to avoid Spring placeholder edge case when one env exists but is blank.
+        String runtimeBaseUrl = normalizeSecret(System.getenv("SEPAY_BASE_URL"));
+        if (!runtimeBaseUrl.isBlank()) {
+            return runtimeBaseUrl;
+        }
+
+        String runtimeAliasBaseUrl = normalizeSecret(System.getenv("SEPAY_API_BASE_URL"));
+        if (!runtimeAliasBaseUrl.isBlank()) {
+            return runtimeAliasBaseUrl;
+        }
+
+        String configuredBaseUrl = normalizeSecret(properties.getBaseUrl());
+        if (!configuredBaseUrl.isBlank()) {
+            return configuredBaseUrl;
+        }
+        return "https://api.sepay.vn";
+    }
+
+    private String resolveCreatePath() {
+        String envPath = normalizeSecret(System.getenv("SEPAY_CREATE_PATH"));
+        if (!envPath.isBlank()) {
+            return envPath;
+        }
+
+        String configuredPath = normalizeSecret(properties.getCreatePath());
+        if (!configuredPath.isBlank()) {
+            return configuredPath;
+        }
+        return "/v1/payments/create";
     }
 
     private String normalizeSecret(String value) {
