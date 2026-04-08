@@ -33,6 +33,8 @@ State:
       - Fixed critical bug in webhook mapping:
         - previously if webhook had `providerReference` but DB did not match, code returned `null` immediately.
         - now it logs and continues to fallback mapping (`SP...` recursive / amount / recent pending).
+      - Added webhook status inference:
+        - if SePay webhook lacks explicit status but indicates incoming-money event and positive amount, infer `PAID`.
   - Now:
     - SQL in Railway Data tab is now running successfully when query is clean (khong dính `LIMIT 100` ghost).
     - Current DB result: 12/12 giao dich `EXPIRED`; `provider_reference` are `direct-*` or `mock-*`.

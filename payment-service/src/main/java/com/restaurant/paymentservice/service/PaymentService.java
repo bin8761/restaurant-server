@@ -228,6 +228,13 @@ public class PaymentService {
                 asString(parsedPayload.get("payment_status")),
                 asString(parsedPayload.get("transaction_status"))
         ));
+        boolean incomingMoneyEvent = isIncomingMoneyWebhook(data, parsedPayload);
+        if ("UNKNOWN".equals(incomingStatus) && incomingMoneyEvent) {
+            incomingStatus = "PAID";
+            log.warn("SePay webhook status missing, infer PAID from incoming-money event: txRef={}, providerRef={}",
+                    tx.getTransactionRef(),
+                    providerReference);
+        }
 
         if ("PAID".equals(tx.getStatus()) && "PAID".equals(incomingStatus)) {
             return Map.of("success", true, "idempotent", true, "transaction_ref", tx.getTransactionRef());
@@ -801,6 +808,51 @@ public class PaymentService {
             return matcher.group();
         }
         return null;
+    }
+
+    private boolean isIncomingMoneyWebhook(Map<String, Object> data, Map<String, Object> parsedPayload) {
+        BigDecimal amount = extractWebhookAmount(data, parsedPayload);
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+
+        String combined = String.join(" ",
+                Optional.ofNullable(toJson(data)).orElse(""),
+                Optional.ofNullable(toJson(parsedPayload)).orElse(""))
+                .toLowerCase();
+
+        if (combined.contains("co tien vao")
+                || combined.contains("co_tien_vao")
+                || combined.contains("incoming")
+                || combined.contains("inbound")
+                || combined.contains("credit")
+                || combined.contains("\"type\":\"in\"")
+                || combined.contains("\"direction\":\"in\"")
+                || combined.contains("\"transaction_type\":\"in\"")
+                || combined.contains("\"event\":\"transaction.in\"")
+                || combined.contains("\"event\":\"money.in\"")) {
+            return true;
+        }
+
+        String[] keys = new String[]{
+                "type", "event", "event_type", "transaction_type", "direction", "transfer_type"
+        };
+        for (String key : keys) {
+            String value = firstNonBlank(
+                    asString(data.get(key)),
+                    asString(parsedPayload.get(key)));
+            if (value != null) {
+                String normalized = value.trim().toLowerCase();
+                if (normalized.equals("in")
+                        || normalized.contains("incoming")
+                        || normalized.contains("credit")
+                        || normalized.contains("co_tien_vao")
+                        || normalized.contains("co tien vao")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private Map<String, Object> parseJsonMap(String rawPayload) {
