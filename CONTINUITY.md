@@ -1,5 +1,6 @@
 ﻿Goal (incl. success criteria):
-- Ẩn chức năng Thu ngân trong FE Admin (menu và route), vì không dùng.
+- Chỉnh UI mục SePay: ẩn Transaction Ref, ẩn hoàn tiền thủ công/thao tác/ghi chú, ẩn dòng mô tả theo dõi giao dịch.
+- Mapping trạng thái sang văn nói dễ hiểu; thời gian hiển thị đúng múi giờ Việt Nam (HH:mm:ss dd/MM/yyyy); tìm kiếm chỉ theo Order ID (#123 hoặc 123) và bỏ placeholder.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -11,33 +12,13 @@ Constraints/Assumptions:
 - Do not run DB/migration/server commands autonomously.
 
 Key decisions:
-- Provider-based approach in `payment-service` for `cash` + `sepay` (no new microservice).
-- SePay runs alongside cash; sandbox is acceptable for now.
-- Use direct VietQR fallback when SePay API create fails (current runtime state).
+- Status mapping: PENDING=Chờ thanh toán, PAID=Đã thanh toán, FAILED=Thất bại, EXPIRED=Hết hạn, PAID_PENDING_SYNC=Đã thanh toán (đang đồng bộ), ALL=Tất cả.
 
 State:
   - Done:
-    - SePay continuity and patches recorded from previous sessions (unchanged).
-    - Customer UI layout fix already pushed (commit `fb8b8ea`).
-    - Updated navbar brand link to always point to `/menu/`.
-    - Committed and pushed navbar change:
-      - Commit: `bbb16ae`
-      - Message: `fix(navbar): always route brand link to /menu`
-    - Adjusted QR page image availability check to tolerate HEAD-blocked image servers.
-    - Committed and pushed QR image fix:
-      - Commit: `04acf3e`
-      - Message: `fix(qr-ui): allow images when head is blocked`
-    - Committed and pushed QR UI copy changes:
-      - Commit: `6bd0f87`
-      - Message: `fix(qr-ui): update toast text and cart label`
-    - Committed and pushed cart label/button text changes:
-      - Commit: `c4d49a8`
-      - Message: `fix(qr-ui): rename cart labels and add button text`
-    - Committed and pushed đổi "Đơn hàng" -> "Hóa đơn":
-      - Commit: `9c297a2`
-      - Message: `fix(qr-ui): rename order labels to invoice`
+    - Design + implementation plan cho UI SePay đã ghi vào docs.
   - Now:
-    - Đã ẩn menu Thu ngân và chặn quyền truy cập route /cashier trong FE-Admin (chưa commit/push).
+    - Đã chỉnh UI SePay trong FE-Admin (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
@@ -46,5 +27,6 @@ Open questions (`UNCONFIRMED` if needed):
 
 Working set (files/ids/commands):
 - `CONTINUITY.md`
-- `Fe-Admin/components/admin-layout.tsx`
-- `Fe-Admin/lib/auth.ts`
+- `Fe-Admin/app/payments/page.tsx`
+- `docs/plans/2026-04-08-sepay-ui-design.md`
+- `docs/plans/2026-04-08-sepay-ui.md`
