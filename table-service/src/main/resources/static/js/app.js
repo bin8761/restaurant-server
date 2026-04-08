@@ -27,6 +27,10 @@ const state = {
 
 const recentToasts = new Map();
 const recentSocketEvents = new Map();
+const WATCHDOG_INTERVAL_MS = 15000;
+const WATCHDOG_NET_ERR_TOLERANCE = 3;
+let _watchdogTimer = null;
+let _watchdogNetErrStreak = 0;
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('vi-VN', {
@@ -1247,3 +1251,38 @@ async function submitSepayPayment(orderId) {
     showToast(error.message || 'Không thể tạo thanh toán SePay', 'error');
   }
 }
+
+function bindUiEvents() {
+  const searchInput = document.getElementById('search-input');
+  const clearSearchBtn = document.getElementById('clear-search');
+  const buffetSearchInput = document.getElementById('buffet-search-input');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const hasValue = Boolean(searchInput.value.trim());
+      if (clearSearchBtn) {
+        clearSearchBtn.classList.toggle('hidden', !hasValue);
+      }
+      renderMenuItems();
+    });
+  }
+
+  if (clearSearchBtn && searchInput) {
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearSearchBtn.classList.add('hidden');
+      renderMenuItems();
+    });
+  }
+
+  if (buffetSearchInput) {
+    buffetSearchInput.addEventListener('input', () => {
+      renderBuffetMenu();
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindUiEvents();
+  initApp();
+});
