@@ -273,10 +273,14 @@ public class OrderService {
                 foodPriceMap = menuClient.getFoodPrices(foodIds);
                 log.info("✅ Got prices from menu-service: {}", foodPriceMap);
             } catch (Exception e) {
-                log.warn("⚠️ Lỗi get food prices, giả lập giá default: {}", e.getMessage());
-                for (Integer id : foodIds) {
-                    foodPriceMap.put(id, new BigDecimal("100000"));
-                }
+                log.error("❌ Không thể lấy giá món từ menu-service: {}", e.getMessage());
+                throw new RuntimeException("Không thể lấy giá món từ menu-service, vui lòng thử lại sau");
+            }
+            List<Integer> missingPriceFoodIds = foodIds.stream()
+                    .filter(id -> !foodPriceMap.containsKey(id) || foodPriceMap.get(id) == null)
+                    .toList();
+            if (!missingPriceFoodIds.isEmpty()) {
+                throw new RuntimeException("Thiếu giá cho món: " + missingPriceFoodIds);
             }
         }
 
