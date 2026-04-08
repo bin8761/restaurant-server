@@ -38,6 +38,8 @@ public interface TableReservationRepository extends JpaRepository<TableReservati
 
         List<TableReservation> findByStatusOrderByStartTimeDesc(String status);
 
+    List<TableReservation> findByTableIdAndStatusIn(Integer tableId, List<String> statuses);
+
     void deleteByTableId(Integer tableId);
 
     /**

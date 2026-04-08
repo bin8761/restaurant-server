@@ -7,6 +7,7 @@ import com.restaurant.tableservice.repository.TableRepository;
 import com.restaurant.tableservice.repository.TableReservationRepository;
 import com.restaurant.tableservice.util.QrCodeUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.lang.NonNull;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TableService {
 
     private static final Set<String> VALID_TABLE_STATUSES = Set.of("Trống", "Đang sử dụng", "Đã đặt", "Chờ xác nhận");
