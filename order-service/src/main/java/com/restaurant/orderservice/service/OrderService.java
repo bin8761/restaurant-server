@@ -16,6 +16,7 @@ import com.restaurant.orderservice.entity.OrderDetail;
 import com.restaurant.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import feign.FeignException;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -586,6 +587,12 @@ public class OrderService {
             throw new RuntimeException("Yêu cầu thanh toán đã được gửi trước đó");
         }
 
+        boolean hasUnfinishedOrders = pendingOrders.stream()
+                .anyMatch(order -> !"Hoàn thành".equalsIgnoreCase(order.getStatus()));
+        if (hasUnfinishedOrders) {
+            throw new RuntimeException("Chỉ có thể yêu cầu thanh toán khi toàn bộ món trong phiên đã hoàn thành");
+        }
+
         BigDecimal sessionTotal = BigDecimal.ZERO;
         for (Order order : pendingOrders) {
             if (order.getTotal() != null) {
@@ -603,9 +610,15 @@ public class OrderService {
 
             try {
                 paymentClient.requestPayment(req);
+            } catch (FeignException e) {
+                String responseBody = e.contentUTF8();
+                String detail = (responseBody != null && !responseBody.isBlank()) ? responseBody : e.getMessage();
+                log.error("Lỗi khi gửi yêu cầu thanh toán tới payment-service cho order {}: status={}, detail={}",
+                        order.getId(), e.status(), detail, e);
+                throw new RuntimeException("Không thể tạo yêu cầu thanh toán: " + detail);
             } catch (Exception e) {
                 log.error("Lỗi khi gửi yêu cầu thanh toán tới payment-service cho order {}: {}", order.getId(), e.getMessage(), e);
-                throw new RuntimeException("Lỗi hệ thống khi yêu cầu thanh toán. Vui lòng thử lại.");
+                throw new RuntimeException("Lỗi hệ thống khi yêu cầu thanh toán: " + e.getMessage());
             }
         }
 
