@@ -391,7 +391,8 @@ public class SepayPaymentProvider implements PaymentProvider {
             return null;
         }
 
-        String qrImageUrl = buildDirectQrImageUrl(bank, account, amount, transactionRef);
+        String transferContent = buildDirectQrTransferContent(bank, transactionRef);
+        String qrImageUrl = buildDirectQrImageUrl(bank, account, amount, transferContent);
 
         log.warn("Use direct QR fallback for txRef={}, reason={}, bank={}, accountTail={}",
                 transactionRef,
@@ -404,7 +405,7 @@ public class SepayPaymentProvider implements PaymentProvider {
         response.put("transaction_ref", transactionRef);
         response.put("amount", amount);
         response.put("expire_at", expireAt != null ? expireAt.toString() : null);
-        response.put("qr_content", transactionRef);
+        response.put("qr_content", transferContent);
         response.put("qr_image_url", qrImageUrl);
         response.put("pay_url", qrImageUrl);
         response.put("raw", Map.of(
@@ -416,7 +417,7 @@ public class SepayPaymentProvider implements PaymentProvider {
         return response;
     }
 
-    private String buildDirectQrImageUrl(String bank, String account, BigDecimal amount, String transactionRef) {
+    private String buildDirectQrImageUrl(String bank, String account, BigDecimal amount, String transferContent) {
         String bankCode = resolveVietQrBankCode(bank);
         String safeAccount = account == null ? "" : account.replaceAll("\\s+", "");
         String amountText = amount == null ? "0" : amount.stripTrailingZeros().toPlainString();
@@ -424,7 +425,22 @@ public class SepayPaymentProvider implements PaymentProvider {
         return "https://img.vietqr.io/image/"
                 + encode(bankCode) + "-" + encode(safeAccount) + "-compact2.png"
                 + "?amount=" + encode(amountText)
-                + "&addInfo=" + encode(transactionRef);
+                + "&addInfo=" + encode(transferContent);
+    }
+
+    private String buildDirectQrTransferContent(String bank, String transactionRef) {
+        String txRef = normalizeSecret(transactionRef);
+        if (txRef.isBlank()) {
+            return "";
+        }
+
+        // VietinBank linked with SePay often requires transfer content to start with SEVQR
+        // so SePay can detect inbound transactions and trigger webhook.
+        String bankCode = normalizeBankCode(bank);
+        if ("vietinbank".equals(bankCode) || "icb".equals(bankCode)) {
+            return "SEVQR " + txRef;
+        }
+        return txRef;
     }
 
     private String resolveDirectQrBank() {

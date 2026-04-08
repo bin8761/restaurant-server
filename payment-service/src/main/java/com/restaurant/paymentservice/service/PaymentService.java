@@ -177,6 +177,10 @@ public class PaymentService {
 
     @Transactional
     public Map<String, Object> processSepayWebhook(String rawPayload, String signature) {
+        log.info("SePay webhook received: signaturePresent={}, payloadSize={}",
+                signature != null && !signature.isBlank(),
+                rawPayload == null ? 0 : rawPayload.length());
+
         if (!sepaySignatureVerifier.isValid(rawPayload, signature)) {
             throw new SecurityException("Invalid SePay signature");
         }
@@ -191,6 +195,9 @@ public class PaymentService {
 
         PaymentTransaction tx = findTransaction(transactionRef, providerReference);
         if (tx == null) {
+            log.warn("SePay webhook transaction not found: transactionRef={}, providerReference={}",
+                    transactionRef,
+                    providerReference);
             return Map.of("success", true, "ignored", "TRANSACTION_NOT_FOUND");
         }
 
