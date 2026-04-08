@@ -39,6 +39,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
 // Types
 interface Order {
   id: number;
@@ -103,18 +105,42 @@ const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString("vi-VN");
+const parseServerDate = (value?: string | null): Date => {
+  if (!value) return new Date(NaN);
+  const input = String(value).trim();
+  const normalized = /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(input) ? input : `${input}Z`;
+  return new Date(normalized);
 };
 
-const isToday = (dateString: string): boolean => {
-  const date = new Date(dateString);
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
+const toVnDateKey = (dateInput: Date | string): string => {
+  const date = typeof dateInput === "string" ? parseServerDate(dateInput) : dateInput;
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: VIETNAM_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
+
+const formatVnDate = (dateString: string): string => {
+  const date = parseServerDate(dateString);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
+};
+
+const formatVnDateTime = (dateString: string): string => {
+  const date = parseServerDate(dateString);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("vi-VN", { timeZone: VIETNAM_TIME_ZONE });
+};
+
+const isTodayVn = (dateString: string): boolean => {
+  const key = toVnDateKey(dateString);
+  const todayKey = toVnDateKey(new Date());
+  return key !== "" && key === todayKey;
 };
 
 // Process data functions
@@ -124,7 +150,7 @@ const calculateKPIs = (
   payments: Payment[]
 ): KPIData => {
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
-  const todayOrders = orders.filter((o) => isToday(o.order_time)).length;
+  const todayOrders = orders.filter((o) => isTodayVn(o.order_time)).length;
   const occupiedTables = tables.filter((t) => t.status === "Đang sử dụng").length;
   const availableTables = tables.filter((t) => t.status === "Trống").length;
 
@@ -135,14 +161,20 @@ const calculateRevenueByDay = (payments: Payment[]): RevenueData[] => {
   const revenueMap = new Map<string, number>();
 
   payments.forEach((payment) => {
-    const date = formatDate(payment.paid_at);
-    revenueMap.set(date, (revenueMap.get(date) || 0) + payment.amount);
+    const dateKey = toVnDateKey(payment.paid_at);
+    if (!dateKey) return;
+    revenueMap.set(dateKey, (revenueMap.get(dateKey) || 0) + payment.amount);
   });
 
   return Array.from(revenueMap.entries())
-    .map(([date, revenue]) => ({ date, revenue }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-7);
+    .map(([dateKey, revenue]) => ({
+      date: formatVnDate(dateKey),
+      revenue,
+      dateKey,
+    }))
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+    .slice(-7)
+    .map(({ date, revenue }) => ({ date, revenue }));
 };
 
 const calculateTopFoods = (orders: Order[], foods: Food[]): TopFoodData[] => {
@@ -515,7 +547,7 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>{formatCurrency(order.total)}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(order.order_time).toLocaleString("vi-VN")}
+                        {formatVnDateTime(order.order_time)}
                       </TableCell>
                     </TableRow>
                   ))
@@ -580,3 +612,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
