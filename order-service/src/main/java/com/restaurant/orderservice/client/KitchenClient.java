@@ -10,5 +10,5 @@ import java.util.Map;
 public interface KitchenClient {
 
     @PostMapping("/api/kitchen/notify")
-    void notifyNewOrder(@RequestBody Map<String, Object> payload);
+    Map<String, Object> notifyNewOrder(@RequestBody Map<String, Object> payload);
 }

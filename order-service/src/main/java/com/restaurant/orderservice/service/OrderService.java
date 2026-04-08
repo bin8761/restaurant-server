@@ -440,11 +440,16 @@ public class OrderService {
 
         // BUG-024: Gọi kitchen TRƯỚC khi update status — nếu thất bại thì rollback
         // Exception từ kitchenClient sẽ được propagate lên, transaction sẽ rollback
+        Map<String, Object> kitchenNotifyResult;
         try {
-            kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
+            kitchenNotifyResult = kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
         } catch (Exception e) {
-            log.error("❌ Kitchen service không khả dụng — hủy xác nhận order {}: {}", id, e.getMessage());
-            throw new RuntimeException("Không thể gửi order đến bếp: " + e.getMessage());
+            log.error("Kitchen service unavailable - cancel confirm order {}: {}", id, e.getMessage());
+            throw new RuntimeException("Khong the gui order den bep: " + e.getMessage());
+        }
+        int insertedCount = toInt(kitchenNotifyResult.get("inserted_count"));
+        if (!detailIds.isEmpty() && insertedCount <= 0) {
+            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao duoc queue item");
         }
 
         order.setStatus("Đang nấu");
@@ -535,12 +540,18 @@ public class OrderService {
                 .map(OrderDetail::getId)
                 .toList();
 
+        Map<String, Object> kitchenNotifyResult;
         try {
-            kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
+            kitchenNotifyResult = kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
         } catch (Exception e) {
             log.error("Kitchen service unavailable when confirming session {}-{}: {}", tableId, tableKey, e.getMessage());
             throw new RuntimeException("Khong the gui mon sang bep: " + e.getMessage());
         }
+        int insertedCount = toInt(kitchenNotifyResult.get("inserted_count"));
+        if (!detailIds.isEmpty() && insertedCount <= 0) {
+            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao duoc queue item");
+        }
+        int skippedCountFromKitchen = toInt(kitchenNotifyResult.get("skipped_count"));
 
         pendingOrders.forEach(order -> order.setStatus("Đang nấu"));
         List<Order> savedOrders = orderRepository.saveAll(pendingOrders);
@@ -558,8 +569,23 @@ public class OrderService {
                 "success", true,
                 "confirmed_count", savedOrders.size(),
                 "skipped_count", sessionOrders.size() - savedOrders.size(),
+                "detail_count", detailIds.size(),
+                "kitchen_inserted_count", insertedCount,
+                "kitchen_skipped_count", skippedCountFromKitchen,
                 "message", "Đã gửi " + savedOrders.size() + " đơn chờ xác nhận sang bếp"
         );
+    }
+
+    private int toInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) return 0;
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     @Transactional
@@ -712,6 +738,8 @@ public class OrderService {
         return result;
     }
 }
+
+
 
 
 

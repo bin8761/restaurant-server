@@ -61,10 +61,10 @@ public class KitchenController {
 
     // Inter-service call
     @PostMapping("/notify")
-    public ResponseEntity<Void> notifyNewOrder(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Map<String, Object>> notifyNewOrder(@RequestBody Map<String, Object> payload) {
         @SuppressWarnings("unchecked")
         List<Integer> addedItems = (List<Integer>) payload.get("added_items");
-        kitchenService.receiveOrderItems(addedItems);
-        return ResponseEntity.ok().build();
+        Map<String, Object> result = kitchenService.receiveOrderItems(addedItems);
+        return ResponseEntity.ok(result);
     }
 }

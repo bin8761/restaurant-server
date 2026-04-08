@@ -46,23 +46,42 @@ public class KitchenService {
     }
 
     @Transactional
-    public void receiveOrderItems(List<Integer> orderDetailIds) {
-        for (Integer odId : orderDetailIds) {
+    public Map<String, Object> receiveOrderItems(List<Integer> orderDetailIds) {
+        List<Integer> receivedItems = orderDetailIds != null ? orderDetailIds : List.of();
+        int insertedCount = 0;
+        int skippedCount = 0;
+        List<Integer> insertedItems = new ArrayList<>();
+
+        for (Integer odId : receivedItems) {
+            if (odId == null) {
+                skippedCount++;
+                continue;
+            }
             // Skip if already exists (prevent duplicate on re-confirm)
             Integer existing = kitchenQueueRepository.countByOrderDetailId(odId);
             if (existing != null && existing > 0) {
                 log.info("KitchenQueue entry already exists for order_detail_id={}, skipping", odId);
+                skippedCount++;
                 continue;
             }
             KitchenQueue queue = new KitchenQueue();
             queue.setOrderDetailId(odId);
             kitchenQueueRepository.save(queue);
+            insertedCount++;
+            insertedItems.add(odId);
         }
 
-        // 🔔 Emit real-time event — mirrors: io.emit('new_order_items', ...)
+        // Emit real-time event for only newly inserted items
         Map<String, Object> payload = new HashMap<>();
-        payload.put("added_items", orderDetailIds);
+        payload.put("added_items", insertedItems);
         socketService.emitNewOrderItems(payload);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("received_count", receivedItems.size());
+        result.put("inserted_count", insertedCount);
+        result.put("skipped_count", skippedCount);
+        result.put("inserted_items", insertedItems);
+        return result;
     }
 
     public KitchenQueue updateQueueItemStatus(@NonNull Integer id, String status) {
@@ -246,3 +265,4 @@ public class KitchenService {
         log.debug("[TRU KHO] Thanh cong cho foodId={} x{}", foodId, quantity);
     }
 }
+
