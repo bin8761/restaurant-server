@@ -44,7 +44,6 @@ const menuItems = [
   { title: "Quản lý món ăn", url: "/menu", icon: ChefHat },
   { title: "Đơn hàng", url: "/orders", icon: ClipboardList },
   { title: "Nhân viên", url: "/staff", icon: Users },
-  { title: "Thu ngân", url: "/cashier", icon: CreditCard },
   { title: "SePay", url: "/payments", icon: Landmark },
   { title: "Bếp", url: "/kitchen", icon: Flame },
   { title: "Kho", url: "/inventory", icon: Package },

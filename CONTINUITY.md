@@ -1,5 +1,5 @@
 ﻿Goal (incl. success criteria):
-- Ẩn chữ "undefined" ở mô tả gói buffet và bỏ cụm "Chưa cấu hình CSDL" khỏi tên gói mặc định.
+- Ẩn chức năng Thu ngân trong FE Admin (menu và route), vì không dùng.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -37,7 +37,7 @@ State:
       - Commit: `9c297a2`
       - Message: `fix(qr-ui): rename order labels to invoice`
   - Now:
-    - Đã ẩn mô tả gói buffet khi thiếu và bỏ cụm "Chưa cấu hình CSDL" khỏi fallback (chưa commit/push).
+    - Đã ẩn menu Thu ngân và chặn quyền truy cập route /cashier trong FE-Admin (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
@@ -46,5 +46,5 @@ Open questions (`UNCONFIRMED` if needed):
 
 Working set (files/ids/commands):
 - `CONTINUITY.md`
-- `rule/continuity-ledger-rule.mdc`
-- `table-service/src/main/resources/static/js/app.js`
+- `Fe-Admin/components/admin-layout.tsx`
+- `Fe-Admin/lib/auth.ts`

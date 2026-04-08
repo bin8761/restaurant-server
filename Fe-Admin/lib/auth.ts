@@ -27,9 +27,9 @@ export const ALLOWED_ADMIN_ROLES = ["ADMIN", "MANAGER", "CASHIER", "KITCHEN"] as
 
 // Page paths each role can access.
 const ROLE_PAGE_ACCESS: Record<string, string[]> = {
-  ADMIN:   ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/staff", "/cashier", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
-  MANAGER: ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/cashier", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
-  CASHIER: ["/dashboard", "/orders", "/tables", "/cashier", "/payments", "/reservations"],
+  ADMIN:   ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/staff", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
+  MANAGER: ["/dashboard", "/tables", "/reservations", "/menu", "/orders", "/payments", "/kitchen", "/inventory", "/portioning", "/floor-plan"],
+  CASHIER: ["/dashboard", "/orders", "/tables", "/payments", "/reservations"],
   KITCHEN: ["/kitchen", "/inventory", "/portioning"],
 };
 
@@ -58,7 +58,7 @@ export function getDefaultPath(roleName: string | undefined | null): string {
   if (!roleName) return "/login";
   const role = roleName.toUpperCase();
   if (role === "KITCHEN") return "/kitchen";
-  if (role === "CASHIER") return "/cashier";
+  if (role === "CASHIER") return "/dashboard";
   return "/dashboard";
 }
 
