@@ -80,7 +80,13 @@ public class KitchenService {
         queuePayload.put("updated_at", item.getUpdatedAt());
         socketService.emitQueueStatusUpdated(queuePayload);
 
-        Map<String, Object> itemContext = kitchenQueueRepository.findQueueItemContextById(id);
+        Map<String, Object> itemContext = null;
+        try {
+            itemContext = kitchenQueueRepository.findQueueItemContextById(id);
+        } catch (Exception e) {
+            // Cross-db JOIN can fail on some envs; do not fail status update because of optional context data
+            log.warn("Cannot load queue item context for id={}, continue with basic status update: {}", id, e.getMessage());
+        }
         if (itemContext != null) {
             Number tableIdNumber = (Number) itemContext.get("table_id");
             Map<String, Object> itemPayload = new HashMap<>();
