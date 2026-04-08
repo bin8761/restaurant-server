@@ -362,13 +362,7 @@ function showToast(message, type = 'success') {
 
   const toast = document.createElement('div');
   toast.className = 'toast';
-  const iconMap = {
-    success: 'OK',
-    error: 'ERR',
-    info: 'i',
-  };
   toast.innerHTML = `
-    <span class="toast-icon ${type}">${iconMap[type] || 'i'}</span>
     <span class="toast-message">${message}</span>
   `;
 
@@ -749,7 +743,7 @@ function addToCart(food, quantity) {
     });
   }
   renderCart();
-  showToast(`Da them ${food.name} vao gio hang`);
+  showToast('Đã thêm món thành công');
 }
 
 function removeFromCart(index) {
