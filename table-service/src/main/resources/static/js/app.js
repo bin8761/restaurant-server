@@ -953,7 +953,7 @@ function initializeSocket() {
         const data = payload.data || {};
 
         if (event === 'order_created') {
-          showToast('Don hang da duoc tao', 'info');
+          showToast('Hóa đơn đã được tạo', 'info');
           await refreshOrders();
         } else if (event === 'buffet_order_created') {
           showToast('Dat buffet thanh cong', 'success');
@@ -1243,7 +1243,7 @@ function renderSepayQrContent(result) {
 async function submitPaymentRequest() {
   const requestOrderId = getRequestPaymentOrderId();
   if (!requestOrderId) {
-    showToast('Chua co don hang de thanh toan', 'error');
+    showToast('Chưa có hóa đơn để thanh toán', 'error');
     return;
   }
 
