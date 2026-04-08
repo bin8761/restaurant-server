@@ -759,8 +759,334 @@ input {
   font-weight: 600;
 }
 
-.buffet-package-cta {
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-primary-light);
+}
+
+.buffet-package-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
+}
+
+/* ---- Buffet Confirm Modal ---- */
+.buffet-confirm-content {
+  padding: 0 var(--space-2) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.buffet-confirm-pkg-header {
+  text-align: center;
+  padding-top: var(--space-2);
+}
+
+.buffet-confirm-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--space-3);
+  background: linear-gradient(135deg, #f5ede0, #e8d5b5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.buffet-confirm-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.buffet-confirm-pkg-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: var(--space-3);
+}
+
+.buffet-confirm-badges {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.buffet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background-color: #f0eae0;
+  color: #7a5c38;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #e0d0b5;
+}
+
+.buffet-badge-green {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border-color: #c8e6c9;
+}
+
+/* Price info table */
+.buffet-confirm-price-info {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.buffet-confirm-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buffet-confirm-price-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.buffet-price-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.buffet-price-sublabel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.buffet-price-tag {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  background: #f5ede0;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+.buffet-price-tag-child {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.buffet-free-note {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+  text-align: center;
+}
+
+/* Guest count selectors */
+.buffet-guest-selectors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.buffet-guest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.buffet-guest-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.buffet-guest-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.buffet-guest-note {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.buffet-qty-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.buffet-qty-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border-strong);
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.buffet-qty-btn:hover {
+  background: var(--color-border);
+}
+
+.buffet-qty-btn-plus {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.buffet-qty-btn-plus:hover {
+  background: var(--color-primary-dark, #5a3e28);
+}
+
+.buffet-qty-value {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 28px;
+  text-align: center;
+}
+
+/* Total summary box */
+.buffet-confirm-total-box {
+  background: linear-gradient(135deg, #3d2710 0%, #5c3d1e 100%);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  color: white;
+}
+
+.buffet-total-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.buffet-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buffet-total-row-label {
+  font-size: var(--text-sm);
+  color: rgba(255,255,255,0.75);
+}
+
+.buffet-total-row-val {
+  font-size: var(--text-sm);
+  color: rgba(255,255,255,0.9);
+  font-weight: 500;
+}
+
+.buffet-total-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.2);
+  margin-bottom: var(--space-3);
+}
+
+.buffet-grand-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.buffet-grand-total-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+
+.buffet-grand-total-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: #f5d49e;
+  font-family: var(--font-display);
+}
+
+.buffet-total-note {
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  margin-top: var(--space-2);
+}
+
+/* Confirm action row */
+.buffet-confirm-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1.5px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--color-border);
+}
+
+/* ---- Buffet Menu Modal ---- */
+.buffet-menu-detail-content {
+  padding: var(--space-2) 0;
+}
+
+.buffet-menu-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+}
+
+.buffet-menu-items-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.buffet-menu-items-list::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: var(--radius-full);
 }
 
 /* --- Cart Section --- */
@@ -824,15 +1150,56 @@ input {
 }
 
 .cart-item-price {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  font-weight: 700;
   color: var(--color-primary);
+}
+
+.cart-item-price-buffet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.price-free {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.price-original {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
 }
 
 .cart-item-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.cart-item-remove-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffebee;
+  color: #d32f2f;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cart-item-remove-btn:hover {
+  background-color: #ffcdd2;
+  color: #b71c1c;
+}
+
+.cart-item-remove-btn svg {
+  display: block;
 }
 
 .cart-item-remove {
@@ -1719,4 +2086,143 @@ input {
   .buffet-packages {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* Self-service Buffet Model 1 Styles */
+.menu-item-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: var(--color-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.price-included {
+  color: var(--color-success);
+  font-weight: 700;
+  font-size: 0.9em;
+}
+
+.food-modal-self-service {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background-color: #f0f7f0;
+  border: 1px solid #c8e6c9;
+  border-radius: var(--radius-lg);
+}
+
+.self-service-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: #2e7d32;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.self-service-message svg {
+  flex-shrink: 0;
+  color: #4caf50;
+}
+
+/* Buffet Invoice V2 Styles */
+.order-card-buffet {
+  border: 2px solid var(--color-primary) !important;
+  background: linear-gradient(to bottom right, #ffffff, #fffdf8) !important;
+  box-shadow: 0 4px 20px rgba(186, 155, 114, 0.12) !important;
+}
+
+.order-card-buffet .order-id {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.order-card-header .order-status.active {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.buffet-order-details {
+  padding: var(--space-4) 0;
+  border-top: 1px dashed var(--color-border);
+  border-bottom: 1px dashed var(--color-border);
+  margin: var(--space-4) 0;
+}
+
+.buffet-pkg-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.buffet-pkg-icon {
+  width: 48px;
+  height: 48px;
+  background-color: #fcf6ec;
+  color: var(--color-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f2e4d0;
+}
+
+.buffet-pkg-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+.buffet-guest-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.guest-pill {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.guest-pill.adults {
+  background-color: #e8eaf6;
+  color: #3f51b5;
+}
+
+.guest-pill.children {
+  background-color: #f3e5f5;
+  color: #9c27b0;
+}
+
+.buffet-expiry-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #fff9f0;
+  color: #d84315;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #ffeecc;
+}
+
+.order-card-buffet-food {
+  opacity: 0.85;
+  border-style: dotted;
+  background-color: #fafafa;
 }

@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   tableId: null,
   tableKey: null,
   deviceSession: null,   // lÄ‚â€ Ă‚Â°u Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă†â€™ dĂ„â€Ă‚Â¹ng cho watchdog, khĂ„â€Ă‚Â´ng cÄ‚Â¡Ă‚ÂºĂ‚Â§n gÄ‚Â¡Ă‚Â»Ă‚Âi lÄ‚Â¡Ă‚ÂºĂ‚Â¡i getDeviceSession() nhiÄ‚Â¡Ă‚Â»Ă‚Âu lÄ‚Â¡Ă‚ÂºĂ‚Â§n
@@ -105,7 +105,7 @@ function getGatewayUrl() {
   if (fromRuntime) return fromRuntime.replace(/\/+$/, '');
 
   const host = window.location.hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
   if (isLocal) return `${window.location.protocol}//${window.location.host.replace(':3011', ':3000')}`;
 
   return 'https://gateway-production-16f9.up.railway.app';
@@ -341,12 +341,20 @@ function updateHeader() {
 function updateBuffetBanner() {
   const banner = document.getElementById('buffet-banner');
   const packageName = document.getElementById('buffet-package-name');
+  const navCart = document.getElementById('nav-item-cart');
 
   if (state.isBuffetActive) {
     packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet đang hoạt động';
     banner.classList.remove('hidden');
+    navCart?.classList.add('hidden');
+    
+    // If we're currently on the cart tab, switch back to menu
+    if (state.currentTab === 'cart') {
+      switchTab('menu');
+    }
   } else {
     banner.classList.add('hidden');
+    navCart?.classList.remove('hidden');
   }
 }
 
@@ -406,13 +414,23 @@ function renderMenuItem(food, isBuffet = false) {
     ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\\'menu-item-image-placeholder\\'>Không có ảnh</div>'">`
     : `<div class="menu-item-image-placeholder">Không có ảnh</div>`;
 
+  const isEligible = food.is_buffet_eligible === true || food.isBuffetEligible === true;
+  let priceDisplay = formatCurrency(food.price);
+  let statusBadge = '';
+
+  if (state.isBuffetActive && isEligible) {
+    priceDisplay = `<span class="price-included">TRONG GÓI</span>`;
+    statusBadge = `<div class="menu-item-badge">QUẦY BUFFET</div>`;
+  }
+
   return `
     <div class="menu-item-card" onclick="openFoodModal('${String(food.id)}', ${isBuffet})">
+      ${statusBadge}
       <div class="menu-item-image">${imageHtml}</div>
       <div class="menu-item-info">
         <h4 class="menu-item-name">${food.name}</h4>
         ${food.category_name ? `<p class="menu-item-desc">${food.category_name}</p>` : ''}
-        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price)}</p>
+        <p class="menu-item-price">${priceDisplay}</p>
       </div>
     </div>
   `;
@@ -465,7 +483,10 @@ function renderBuffetPackages() {
       <ul class="buffet-package-features">
         ${(pkg.features || []).map((feature) => `<li>${feature}</li>`).join('')}
       </ul>
-      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">Chọn gói này</button>
+      <div class="buffet-package-actions" style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn btn-outline btn-full" onclick="openBuffetMenuModal('${String(pkg.id)}')">Xem thực đơn</button>
+        <button class="btn btn-primary btn-full buffet-package-cta" style="margin-top: 0;" onclick="selectBuffetPackage('${String(pkg.id)}')">Chọn gói này</button>
+      </div>
     </div>
   `).join('');
 }
@@ -475,15 +496,38 @@ function renderBuffetMenu() {
   if (!container) return;
 
   const searchQuery = (document.getElementById('buffet-search-input')?.value || '').trim().toLowerCase();
-  const categories = state.buffetFoodCategories.map((category) => ({
-    ...category,
-    foods: (category.foods || []).filter((food) => !searchQuery || food.name.toLowerCase().includes(searchQuery)),
-  })).filter((category) => category.foods.length > 0);
+  
+  // Only show foods from the selected package
+  let buffetFoods = [];
+  if (state.selectedBuffetPackage && state.selectedBuffetPackage.foods) {
+    buffetFoods = state.selectedBuffetPackage.foods;
+  }
 
-  if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">Không tìm thấy món buffet</p><p class="empty-desc">Thử từ khóa khác</p></div>';
+  // Filter by search
+  if (searchQuery) {
+    buffetFoods = buffetFoods.filter(food => food.name.toLowerCase().includes(searchQuery));
+  }
+
+  if (buffetFoods.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <p class="empty-title">${searchQuery ? 'Không tìm thấy món buffet' : 'Chưa có món ăn trong gói này'}</p>
+      <p class="empty-desc">${searchQuery ? 'Thử từ khóa khác' : 'Liên hệ nhân viên để biết thêm chi tiết'}</p>
+    </div>`;
     return;
   }
+
+  // Group by category
+  const categoriesMap = {};
+  buffetFoods.forEach(food => {
+    const catName = food.category_name || food.categoryName || 'Món chính';
+    if (!categoriesMap[catName]) categoriesMap[catName] = [];
+    categoriesMap[catName].push(food);
+  });
+
+  const categories = Object.keys(categoriesMap).map(catName => ({
+    name: catName,
+    foods: categoriesMap[catName]
+  }));
 
   container.innerHTML = categories.map((category) => `
     <div class="category-section">
@@ -505,7 +549,10 @@ function renderCart() {
   const badgeEl = document.getElementById('cart-badge');
 
   const totalItems = state.cart.reduce((sum, item) => sum + item.quantity, 0);
-  const totalAmount = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalAmount = state.cart.reduce((sum, item) => {
+    // Only sum prices for non-buffet items
+    return sum + (item.is_buffet_item ? 0 : (item.price * item.quantity));
+  }, 0);
 
   if (totalItems > 0) {
     badgeEl.textContent = totalItems;
@@ -536,20 +583,29 @@ function renderCart() {
       ? `<img src="${cartImageUrl}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\\'cart-item-image-placeholder\\'>Không có ảnh</div>'">`
       : `<div class="cart-item-image-placeholder">Không có ảnh</div>`;
 
+    const priceHtml = item.is_buffet_item 
+      ? `<div class="cart-item-price-buffet">
+           <span class="price-free">MIỄN PHÍ</span>
+           <span class="price-original">${formatCurrency(item.original_price || 0)}</span>
+         </div>`
+      : `<p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>`;
+
     return `
       <div class="cart-item">
         <div class="cart-item-image">${imageHtml}</div>
         <div class="cart-item-info">
           <h4 class="cart-item-name">${item.name}</h4>
-          <p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>
+          ${priceHtml}
         </div>
         <div class="cart-item-actions">
-          <button class="cart-item-remove" onclick="removeFromCart(${index})">Xóa</button>
           <div class="quantity-selector">
-            <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+            <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)">−</button>
             <span class="quantity-value">${item.quantity}</span>
             <button class="quantity-btn" onclick="updateCartQuantity(${index}, 1)">+</button>
           </div>
+          <button class="cart-item-remove-btn" onclick="removeFromCart(${index})">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </div>
       </div>
     `;
@@ -566,12 +622,11 @@ function renderOrders() {
   const paymentStatusEl = document.getElementById('session-payment-status');
 
   const totalOrders = state.summary?.total_orders || 0;
-  const totalItems = state.summary?.total_items || 0;
   const totalAmount = state.summary?.total_amount || 0;
   const paymentStatus = getCurrentSessionPaymentStatus();
 
   document.getElementById('total-orders-count').textContent = totalOrders;
-  document.getElementById('total-items-count').textContent = totalItems;
+  document.getElementById('total-items-count').textContent = state.summary?.total_items || 0;
   document.getElementById('session-total-amount').textContent = formatCurrency(totalAmount);
   paymentStatusEl.textContent = getPaymentStatusText(paymentStatus);
   paymentStatusEl.className = `payment-status ${getPaymentStatusClass(paymentStatus)}`;
@@ -593,35 +648,78 @@ function renderOrders() {
 
   listEl.innerHTML = state.orders.map((order) => {
     const displayStatus = normalizeOrderStatus(order.status);
-    return `
-    <div class="order-card">
-      <div class="order-card-header">
-        <div class="order-card-info">
-          <span class="order-id">Đơn #${order.id}</span>
-          <span class="order-time">${formatDateTime(order.order_time)}</span>
-        </div>
-        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Đang xử lý'}</span>
-      </div>
-      <div class="order-items-list">
-        ${(order.details || []).map((item) => `
-          <div class="order-item-row">
-            <div class="order-item-left">
-              <span class="order-item-qty">${item.quantity}x</span>
-              <div class="order-item-meta">
-                <span class="order-item-name">${item.food_name || 'N/A'}</span>
-                ${state.itemStatuses[item.id]?.status ? `<span class="order-item-status ${normalizeOrderStatus(state.itemStatuses[item.id].status) === 'hoan thanh' ? 'delivered' : ''}">${getItemStatusText(state.itemStatuses[item.id].status)}</span>` : ''}
+    const isBuffetActivation = order.is_buffet && (!order.details || order.details.length === 0);
+    const isBuffetSessionActive = order.is_buffet && order.payment_status !== 'paid';
+
+    if (isBuffetActivation) {
+      return `
+        <div class="order-card order-card-buffet">
+          <div class="order-card-header">
+            <div class="order-card-info">
+              <span class="order-id">Đơn #${order.id} - KÍCH HOẠT BUFFET</span>
+              <span class="order-time">${formatDateTime(order.order_time)}</span>
+            </div>
+            <span class="order-status active">ĐANG DIỄN RA</span>
+          </div>
+          <div class="buffet-order-details">
+            <div class="buffet-pkg-main">
+              <div class="buffet-pkg-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </div>
+              <div>
+                <h4 class="buffet-pkg-name">${order.buffet_package_name || 'Gói Buffet'}</h4>
+                <div class="buffet-guest-pills">
+                  <span class="guest-pill adults">${order.num_adults || 1} Người lớn</span>
+                  ${order.num_children > 0 ? `<span class="guest-pill children">${order.num_children} Trẻ em</span>` : ''}
+                </div>
               </div>
             </div>
-            <span class="order-item-price">${formatCurrency((item.price || 0) * (item.quantity || 0))}</span>
+            ${order.buffet_expiry_time ? `
+              <div class="buffet-expiry-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span>Hết hạn lúc: ${formatTime(order.buffet_expiry_time)}</span>
+              </div>
+            ` : ''}
           </div>
-        `).join('')}
+          <div class="order-card-footer">
+            <span class="order-total-label">Tổng gói</span>
+            <span class="order-total-amount">${formatCurrency(order.total)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // For food orders within buffet or regular orders
+    const isSubsequentBuffet = order.is_buffet && order.total === 0;
+    
+    return `
+      <div class="order-card ${isSubsequentBuffet ? 'order-card-buffet-food' : ''}">
+        <div class="order-card-header">
+          <div class="order-card-info">
+            <span class="order-id">Đơn #${order.id} ${isSubsequentBuffet ? '(Món Buffet)' : ''}</span>
+            <span class="order-time">${formatDateTime(order.order_time)}</span>
+          </div>
+          <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Đang xử lý'}</span>
+        </div>
+        <div class="order-items-list">
+          ${(order.details || []).map((item) => `
+            <div class="order-item-row">
+              <div class="order-item-left">
+                <span class="order-item-qty">${item.quantity}x</span>
+                <span class="order-item-name">${item.food_name || 'Món ăn'}</span>
+              </div>
+              <span class="order-item-price">${item.price === 0 ? 'MIỄN PHÍ' : formatCurrency(item.price * item.quantity)}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${!isSubsequentBuffet ? `
+          <div class="order-card-footer">
+            <span class="order-total-label">Thành tiền</span>
+            <span class="order-total-amount">${formatCurrency(order.total)}</span>
+          </div>
+        ` : ''}
       </div>
-      <div class="order-card-footer">
-        <span class="order-total-label">Thanh tien</span>
-        <span class="order-total-amount">${formatCurrency(order.total)}</span>
-      </div>
-    </div>
-  `;
+    `;
   }).join('');
 }
 
@@ -700,11 +798,26 @@ function openFoodModal(foodId, isBuffet = false) {
   imageContainer.innerHTML = imageUrl ? `<img src="${imageUrl}" alt="${food.name}">` : '';
   imageContainer.style.display = imageUrl ? 'block' : 'none';
 
+  const isEligible = food.is_buffet_eligible === true || food.isBuffetEligible === true;
+  const isSelfService = state.isBuffetActive && isEligible;
+
   document.getElementById('food-modal-name').textContent = food.name;
   document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Món buffet' : 'Món ăn');
-  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price);
+  document.getElementById('food-modal-price').textContent = isSelfService ? 'TRONG GÓI' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
-  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi món' : 'Thêm món';
+  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi thêm' : 'Thêm món';
+
+  // Toggle actions vs self-service info
+  const actionsEl = document.getElementById('food-modal-actions');
+  const selfServiceEl = document.getElementById('food-modal-self-service');
+  
+  if (isSelfService) {
+    actionsEl?.classList.add('hidden');
+    selfServiceEl?.classList.remove('hidden');
+  } else {
+    actionsEl?.classList.remove('hidden');
+    selfServiceEl?.classList.add('hidden');
+  }
 
   document.getElementById('food-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -730,20 +843,24 @@ function decreaseModalQuantity() {
 }
 
 function addToCart(food, quantity) {
+  const isBuffetItem = food.is_buffet === true || state.isBuffetActive === true;
   const existing = state.cart.find((item) => String(item.food_id) === String(food.id));
+  
   if (existing) {
     existing.quantity += quantity;
   } else {
     state.cart.push({
       food_id: food.id,
       name: food.name,
-      price: food.price,
+      price: isBuffetItem ? 0 : food.price,
+      original_price: food.price,
       image_url: food.image_url,
       quantity,
+      is_buffet_item: isBuffetItem
     });
   }
   renderCart();
-  showToast('Đã thêm món thành công');
+  showToast(isBuffetItem ? 'Đã thêm món buffet vào giỏ' : 'Đã thêm món thành công');
 }
 
 function removeFromCart(index) {
@@ -764,47 +881,34 @@ function updateCartQuantity(index, delta) {
 async function addToCartFromModal() {
   if (!state.modalFood) return;
 
-  if (state.isBuffetActive) {
-    try {
-      await fetchJson('/api/orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          table_id: state.tableId,
-          table_key: state.tableKey,
-          items: [{ food_id: state.modalFood.id, quantity: state.modalQuantity }],
-          is_buffet: true,
-          buffet_session_id: state.selectedBuffetPackage?.buffet_session_id || null,
-          buffet_package_id: state.selectedBuffetPackage?.id || null,
-          buffet_package_name: state.selectedBuffetPackage?.name || null,
-        }),
-      });
-      showToast(`Đã gọi ${state.modalFood.name}`);
-      closeFoodModal();
-      await refreshOrders();
-    } catch (error) {
-      showToast(error.message || 'Không thể gọi món buffet', 'error');
-    }
-    return;
-  }
-
   addToCart(state.modalFood, state.modalQuantity);
   closeFoodModal();
 }
 async function placeOrder() {
   if (state.cart.length === 0) {
-    showToast('Gio hang trong', 'error');
+    showToast('Giỏ hàng trống', 'error');
     return;
   }
 
   try {
+    const payload = {
+      table_id: state.tableId,
+      table_key: state.tableKey,
+      items: state.cart.map((item) => ({ food_id: item.food_id, quantity: item.quantity })),
+    };
+
+    if (state.isBuffetActive) {
+      payload.is_buffet = true;
+      payload.buffet_session_id = state.selectedBuffetPackage?.buffet_session_id || null;
+      payload.buffet_package_id = state.selectedBuffetPackage?.id || null;
+      payload.buffet_package_name = state.selectedBuffetPackage?.name || null;
+    }
+
     await fetchJson('/api/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        table_id: state.tableId,
-        table_key: state.tableKey,
-        items: state.cart.map((item) => ({ food_id: item.food_id, quantity: item.quantity })),
-      }),
+      body: JSON.stringify(payload),
     });
+    
     state.cart = [];
     renderCart();
     await refreshOrders();
@@ -819,12 +923,96 @@ function selectBuffetPackage(packageId) {
   const pkg = state.buffetPackages.find((item) => String(item.id) === String(packageId));
   if (!pkg) return;
   state.selectedBuffetPackage = pkg;
-  document.getElementById('buffet-confirm-details').innerHTML = `
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Goi buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Giá / người</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
-  `;
+
+  // Initialize guest counts
+  state.buffetNumAdults = state.buffetNumAdults || 2;
+  state.buffetNumChildren = state.buffetNumChildren || 0;
+
+  // Prices
+  const priceAdult = Number(pkg.price) || 299000;
+  const priceChild = Number(pkg.price_child || pkg.priceChild) || 149000;
+  state.buffetPriceAdult = priceAdult;
+  state.buffetPriceChild = priceChild;
+
+  // Fill header
+  const pkgNameEl = document.getElementById('buffet-confirm-pkg-name');
+  if (pkgNameEl) pkgNameEl.textContent = pkg.name;
+
+  // Duration badge
+  const durText = document.getElementById('buffet-confirm-duration-text');
+  if (durText) {
+    const mins = pkg.duration_minutes || pkg.durationMinutes || 120;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    durText.textContent = remMins > 0 ? `${hrs} giờ ${remMins} phút` : `${hrs} giờ`;
+  }
+
+  // Fill price info
+  const adultPriceEl = document.getElementById('buffet-adult-price-display');
+  const childPriceEl = document.getElementById('buffet-child-price-display');
+  if (adultPriceEl) adultPriceEl.textContent = `${formatCurrency(priceAdult)} / người`;
+  if (childPriceEl) childPriceEl.textContent = `${formatCurrency(priceChild)} / trẻ`;
+
+  // Set counts in UI
+  const adultsEl = document.getElementById('buffet-adults-count');
+  const childrenEl = document.getElementById('buffet-children-count');
+  if (adultsEl) adultsEl.textContent = state.buffetNumAdults;
+  if (childrenEl) childrenEl.textContent = state.buffetNumChildren;
+
+  // Refresh total
+  refreshBuffetConfirmTotal();
+
   document.getElementById('buffet-confirm-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+function updateBuffetGuests(type, delta) {
+  if (type === 'adults') {
+    const next = (state.buffetNumAdults || 1) + delta;
+    state.buffetNumAdults = Math.max(1, next); // min 1 adult
+    const el = document.getElementById('buffet-adults-count');
+    if (el) el.textContent = state.buffetNumAdults;
+  } else if (type === 'children') {
+    const next = (state.buffetNumChildren || 0) + delta;
+    state.buffetNumChildren = Math.max(0, next); // min 0 children
+    const el = document.getElementById('buffet-children-count');
+    if (el) el.textContent = state.buffetNumChildren;
+  }
+  refreshBuffetConfirmTotal();
+}
+
+function refreshBuffetConfirmTotal() {
+  const adults = state.buffetNumAdults || 2;
+  const children = state.buffetNumChildren || 0;
+  const priceAdult = state.buffetPriceAdult || 299000;
+  const priceChild = state.buffetPriceChild || 149000;
+
+  const adultTotal = adults * priceAdult;
+  const childTotal = children * priceChild;
+  const grandTotal = adultTotal + childTotal;
+
+  const adultRowEl = document.getElementById('buffet-adult-total-row');
+  const childRowEl = document.getElementById('buffet-child-total-row');
+  const grandEl = document.getElementById('buffet-grand-total');
+
+  if (adultRowEl) {
+    adultRowEl.innerHTML = `
+      <span class="buffet-total-row-label">${adults} Người lớn × ${formatCurrency(priceAdult)}</span>
+      <span class="buffet-total-row-val">${formatCurrency(adultTotal)}</span>
+    `;
+  }
+  if (childRowEl) {
+    if (children > 0) {
+      childRowEl.style.display = 'flex';
+      childRowEl.innerHTML = `
+        <span class="buffet-total-row-label">${children} Trẻ em × ${formatCurrency(priceChild)}</span>
+        <span class="buffet-total-row-val">${formatCurrency(childTotal)}</span>
+      `;
+    } else {
+      childRowEl.style.display = 'none';
+    }
+  }
+  if (grandEl) grandEl.textContent = formatCurrency(grandTotal);
 }
 
 function closeBuffetConfirmModal() {
@@ -834,6 +1022,12 @@ function closeBuffetConfirmModal() {
 
 async function confirmBuffetOrder() {
   if (!state.selectedBuffetPackage) return;
+
+  const numAdults = state.buffetNumAdults || 2;
+  const numChildren = state.buffetNumChildren || 0;
+  const priceAdult = state.buffetPriceAdult || state.selectedBuffetPackage.price;
+  const priceChild = state.buffetPriceChild || 149000;
+  const totalPrice = (numAdults * priceAdult) + (numChildren * priceChild);
 
   try {
     await fetchJson('/api/orders', {
@@ -846,6 +1040,8 @@ async function confirmBuffetOrder() {
         buffet_price: state.selectedBuffetPackage.price,
         buffet_package_id: state.selectedBuffetPackage.id,
         buffet_package_name: state.selectedBuffetPackage.name,
+        num_adults: numAdults,
+        num_children: numChildren,
       }),
     });
 
@@ -853,7 +1049,7 @@ async function confirmBuffetOrder() {
     state.isBuffetActive = false;
     closeBuffetConfirmModal();
     await refreshOrders();
-    showToast('Đã gửi yêu cầu buffet, chờ nhà hàng xác nhận.');
+    showToast(`Đã đặt Buffet cho ${numAdults} người lớn${numChildren > 0 ? `, ${numChildren} trẻ em` : ''} - Tổng: ${formatCurrency(totalPrice)}`, 'success');
     switchTab('orders');
   } catch (error) {
     showToast(error.message || 'Không thể đặt buffet', 'error');
@@ -931,6 +1127,18 @@ async function refreshOrders() {
   }
   if (state.isBuffetActive) {
     state.orderMode = 'buffet';
+    
+    // Fetch full package details if missing (e.g. after refresh/initial load from session summary)
+    if (state.selectedBuffetPackage && (!state.selectedBuffetPackage.foods || state.selectedBuffetPackage.foods.length === 0)) {
+      try {
+        const fullPkg = await fetchJson(`/api/menu/buffet-packages/${state.selectedBuffetPackage.id}`);
+        if (fullPkg && fullPkg.foods) {
+          state.selectedBuffetPackage = { ...state.selectedBuffetPackage, ...fullPkg };
+        }
+      } catch (e) {
+        console.warn('Could not fetch full buffet package details on refresh:', e);
+      }
+    }
   }
 
   updateHeader();
@@ -1182,13 +1390,59 @@ function openPaymentModal() {
 }
 
 function closePaymentModal() {
-  document.getElementById('payment-modal').classList.add('hidden');
+  document.getElementById('payment-modal')?.classList.add('hidden');
   document.body.style.overflow = '';
   if (state.sepayPollingTimer) {
     clearInterval(state.sepayPollingTimer);
     state.sepayPollingTimer = null;
   }
   state.sepayTransactionRef = null;
+}
+
+function openBuffetMenuModal(packageId) {
+  const pkg = state.buffetPackages.find(p => String(p.id) === String(packageId));
+  if (!pkg) return;
+
+  const modal = document.getElementById('buffet-menu-modal');
+  const titleEl = document.getElementById('buffet-menu-title');
+  const descEl = document.getElementById('buffet-menu-pkg-desc');
+  const listEl = document.getElementById('buffet-menu-items-list');
+
+  if (!modal || !listEl) return;
+
+  titleEl.textContent = `Thực đơn ${pkg.name}`;
+  descEl.textContent = pkg.description || '';
+
+  if (!pkg.foods || pkg.foods.length === 0) {
+    listEl.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Thông tin món ăn đang được cập nhật...</p>';
+  } else {
+    listEl.innerHTML = pkg.foods.map(food => {
+      const urlRaw = food.image_url || food.imageUrl;
+      const imageUrl = getImageUrl(urlRaw);
+      const categoryName = food.category_name || food.categoryName || '';
+      const imgHtml = imageUrl 
+        ? `<img src="${imageUrl}" alt="${food.name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">`
+        : `<div style="width: 60px; height: 60px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999; text-align: center;">No image</div>`;
+      
+      return `
+        <div style="display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
+          ${imgHtml}
+          <div style="flex: 1;">
+            <p style="font-weight: 600; font-size: 15px; margin-bottom: 2px;">${food.name}</p>
+            <p style="font-size: 12px; color: #888;">${categoryName}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBuffetMenuModal() {
+  document.getElementById('buffet-menu-modal')?.classList.add('hidden');
+  document.body.style.overflow = '';
 }
 
 function setPaymentMethod(method) {

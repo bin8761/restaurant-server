@@ -19,5 +19,9 @@ public class OrderSessionSummaryDto {
     private String payment_status;
     private Boolean buffet_active;
     private String buffet_package_name;
+    private LocalDateTime buffet_expiry_time;
+    private Integer num_adults;
+    private Integer num_children;
+    private Long seconds_remaining;
     private LocalDateTime last_order_time;
 }
