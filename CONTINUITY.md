@@ -111,11 +111,16 @@ State:
     - Da chuyen provider tu Resend sang SendGrid theo yeu cau user: uu tien SendGrid API, fallback SMTP khi khong co `SENDGRID_API_KEY`.
     - Da doi config tu `app.mail.resend.*` sang `app.mail.sendgrid.*` trong `user-service/application.yml`.
     - Build verify thanh cong `user-service` sau khi doi sang SendGrid.
+    - Da xac dinh root-cause QR quet khong chay: URL trong QR dang duoc tao bang `local IP + :3011`, khong on dinh khi quet tu thiet bi khac.
+    - Da sua `table-service` de tao URL QR tu `app.public-base-url` thay vi local IP.
+    - Da bo sung config `app.public-base-url` trong `table-service/application.yml`.
+    - Da chuan hoa du lieu local SQL: `tables.status='available'` -> `Trong` (value hop le theo enum service).
+    - Build verify thanh cong `table-service` sau khi patch QR URL.
   - Now:
-    - Chuan bi commit/push patch SendGrid de Railway auto deploy.
+    - Chuan bi commit/push patch QR + SQL de user deploy/test lai.
   - Next:
     - Commit + push `main`.
-    - User set env SendGrid (`SENDGRID_API_KEY`, `SENDGRID_FROM`) va test lai OTP.
+    - User set `APP_PUBLIC_BASE_URL` dung domain frontend table-service va tao lai QR de test.
     - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
     - User review/pull latest va test manual E2E theo luong SePay.
     - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.

@@ -7,13 +7,13 @@ import com.restaurant.tableservice.repository.TableRepository;
 import com.restaurant.tableservice.repository.TableReservationRepository;
 import com.restaurant.tableservice.util.QrCodeUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.InetAddress;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +33,8 @@ public class TableService {
     private final TableRepository tableRepository;
     private final TableKeyRepository tableKeyRepository;
     private final TableReservationRepository tableReservationRepository;
+    @Value("${app.public-base-url:${APP_PUBLIC_BASE_URL:${APP_FRONTEND_URL:http://localhost:3011}}}")
+    private String publicBaseUrl;
 
     public List<RestaurantTable> getAllTables() {
         return tableRepository.findAll();
@@ -331,10 +333,9 @@ public class TableService {
     @Transactional
     public Map<String, Object> generateStaticQRCode(@NonNull Integer id) {
         RestaurantTable table = getTableById(id);
-        String localIP = getLocalIpAddress();
         // Static QR trỏ thẳng đến endpoint generate-access trên table-service (:3011).
         // Khi khách quét, /generate-access sẽ tạo key mới rồi redirect sang index.html.
-        String qrUrl = "http://" + localIP + ":3011/api/tables/" + id + "/generate-access";
+        String qrUrl = buildPublicUrl("/api/tables/" + id + "/generate-access");
 
         Map<String, Object> res = new HashMap<>();
         res.put("table_id", id);
@@ -403,8 +404,7 @@ public class TableService {
         key.setIsValid(true);
         tableKeyRepository.save(key);
 
-        String localIP = getLocalIpAddress();
-        String qrUrl = "http://" + localIP + ":3011/index.html?tableId=" + id + "&tableKey=" + keyValue;
+        String qrUrl = buildPublicUrl("/index.html?tableId=" + id + "&tableKey=" + keyValue);
 
         Map<String, Object> res = new HashMap<>();
         res.put("table_id", id);
@@ -434,12 +434,17 @@ public class TableService {
         return generateDynamicQRCode(id);
     }
 
-    private String getLocalIpAddress() {
-        try {
-            return InetAddress.getLocalHost().getHostAddress();
-        } catch (Exception e) {
-            return "localhost";
+    private String buildPublicUrl(String path) {
+        String base = publicBaseUrl == null || publicBaseUrl.isBlank()
+                ? "http://localhost:3011"
+                : publicBaseUrl.trim();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
         }
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        return base + path;
     }
 
     private LocalDateTime parseDateTime(String value, String fieldName) {

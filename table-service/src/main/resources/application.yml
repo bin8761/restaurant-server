@@ -20,3 +20,6 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
 
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:${APP_FRONTEND_URL:http://localhost:3011}}
+
