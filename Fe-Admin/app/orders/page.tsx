@@ -206,9 +206,7 @@ export default function OrdersManagementPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [filterPayment, setFilterPayment] = useState<string>("all");
-    const [filterDate, setFilterDate] = useState<string>(
-        new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local format
-    );
+    const [filterDate, setFilterDate] = useState<string>("");
 
     // Dialog states
     const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);

@@ -1,5 +1,5 @@
 ﻿Goal (incl. success criteria):
-- Tắt tự động reload/refresh ở các trang admin (loại bỏ polling/interval).
+- Tắt tự động reload/refresh ở admin và đảm bảo trang Đơn hàng không bị lọc rỗng do mặc định theo ngày.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -11,25 +11,19 @@ Constraints/Assumptions:
 - Do not run DB/migration/server commands autonomously.
 
 Key decisions:
-- Chỉ tắt polling/interval; socket realtime giữ nguyên.
+- Mặc định không lọc theo ngày để tránh rỗng dữ liệu khi qua ngày mới.
 
 State:
   - Done:
-    - Đã tắt polling/interval ở dashboard/tables/reservations/orders/kitchen/payments/cashier (chưa commit/push).
+    - Đã tắt polling/interval ở các trang admin trước đó.
   - Now:
-    - Chờ xác nhận commit/push.
+    - Đã bỏ default filterDate ở trang Đơn hàng (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
 Open questions (`UNCONFIRMED` if needed):
-- UNCONFIRMED: Có cần tắt cả socket realtime không?
+- UNCONFIRMED: Có muốn giữ bộ lọc ngày với nút xóa nhanh không?
 
 Working set (files/ids/commands):
 - `CONTINUITY.md`
-- `Fe-Admin/app/dashboard/page.tsx`
-- `Fe-Admin/app/tables/page.tsx`
-- `Fe-Admin/app/reservations/page.tsx`
 - `Fe-Admin/app/orders/page.tsx`
-- `Fe-Admin/app/kitchen/page.tsx`
-- `Fe-Admin/app/payments/page.tsx`
-- `Fe-Admin/app/cashier/page.tsx`
