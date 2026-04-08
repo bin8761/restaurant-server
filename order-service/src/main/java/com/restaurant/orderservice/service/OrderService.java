@@ -448,8 +448,9 @@ public class OrderService {
             throw new RuntimeException("Khong the gui order den bep: " + e.getMessage());
         }
         int insertedCount = toInt(kitchenNotifyResult.get("inserted_count"));
-        if (!detailIds.isEmpty() && insertedCount <= 0) {
-            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao duoc queue item");
+        int skippedCountFromKitchen = toInt(kitchenNotifyResult.get("skipped_count"));
+        if (!detailIds.isEmpty() && (insertedCount + skippedCountFromKitchen) <= 0) {
+            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao/khong tim thay queue item");
         }
 
         order.setStatus("Đang nấu");
@@ -548,10 +549,10 @@ public class OrderService {
             throw new RuntimeException("Khong the gui mon sang bep: " + e.getMessage());
         }
         int insertedCount = toInt(kitchenNotifyResult.get("inserted_count"));
-        if (!detailIds.isEmpty() && insertedCount <= 0) {
-            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao duoc queue item");
-        }
         int skippedCountFromKitchen = toInt(kitchenNotifyResult.get("skipped_count"));
+        if (!detailIds.isEmpty() && (insertedCount + skippedCountFromKitchen) <= 0) {
+            throw new RuntimeException("Kitchen notify thanh cong nhung khong tao/khong tim thay queue item");
+        }
 
         pendingOrders.forEach(order -> order.setStatus("Đang nấu"));
         List<Order> savedOrders = orderRepository.saveAll(pendingOrders);
