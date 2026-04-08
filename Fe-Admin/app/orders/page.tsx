@@ -60,6 +60,7 @@ import { Separator } from "@/components/ui/separator";
 import { kitchenSocket, orderSocket } from "@/lib/socket";
 
 const fetcher = (url: string) => api.get(url).then((res) => res.data);
+const VIETNAM_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
 // Types
 interface OrderDetail {
@@ -121,14 +122,38 @@ const formatCurrency = (value: number): string => {
     }).format(value);
 };
 
+const parseServerDate = (value?: string | null): Date => {
+    if (!value) return new Date(NaN);
+    const input = String(value).trim();
+    // Backend often returns timezone-naive ISO; treat it as UTC to avoid client-timezone drift.
+    const normalized = /(?:[zZ]|[+-]\d{2}:\d{2})$/.test(input) ? input : `${input}Z`;
+    return new Date(normalized);
+};
+
 const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleString("vi-VN", {
+    const date = parseServerDate(dateString);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString("vi-VN", {
+        timeZone: VIETNAM_TIME_ZONE,
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
     });
+};
+
+const toVnDateKey = (dateString: string): string => {
+    const date = parseServerDate(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: VIETNAM_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(date);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${get("year")}-${get("month")}-${get("day")}`;
 };
 
 const getStatusColor = (status: string | null): string => {
@@ -366,7 +391,7 @@ export default function OrdersManagementPage() {
 
         let matchesDate = true;
         if (filterDate) {
-            const orderDateStr = new Date(session.last_order_time).toLocaleDateString('en-CA');
+            const orderDateStr = toVnDateKey(session.last_order_time);
             matchesDate = orderDateStr === filterDate;
         }
 
