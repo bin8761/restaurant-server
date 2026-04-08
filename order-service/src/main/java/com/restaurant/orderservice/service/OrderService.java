@@ -538,7 +538,8 @@ public class OrderService {
         try {
             kitchenClient.notifyNewOrder(Map.of("added_items", detailIds));
         } catch (Exception e) {
-            log.warn("Kitchen service không khả dụng khi confirm session {}-{}: {}", tableId, tableKey, e.getMessage());
+            log.error("Kitchen service unavailable when confirming session {}-{}: {}", tableId, tableKey, e.getMessage());
+            throw new RuntimeException("Khong the gui mon sang bep: " + e.getMessage());
         }
 
         pendingOrders.forEach(order -> order.setStatus("Đang nấu"));
@@ -711,5 +712,6 @@ public class OrderService {
         return result;
     }
 }
+
 
 
