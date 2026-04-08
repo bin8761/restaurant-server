@@ -1,145 +1,55 @@
-﻿Goal (incl. success criteria):
-- Deploy du an restaurant-server len TOSE (https://tose.sh) theo docs chinh thuc, chay duoc BE full + Fe-Admin.
-- Tich hop thanh toan SePay vao he thong theo tai lieu mau `package-sepay-integration-reference`.
+Goal (incl. success criteria):
+- SePay payment flow on Railway: create QR, receive webhook, transaction status moves from `PENDING` to `PAID`, admin view updates.
+- Deployment goal (secondary): all services deployable on Railway (pilot done).
 
 Constraints/Assumptions:
-- Apply all rules under C:\Users\yasuo\Desktop\restaurant-server\rule.
-- Update the ledger every turn; replies begin with Ledger Snapshot (Goal + Now/Next + Open Questions).
-- Apply continuity-ledger-rule.mdc for every request.
-- Work only within C:\Users\yasuo\Desktop\restaurant-server.
+- Apply rules under `C:\Users\yasuo\Desktop\restaurant-server\rule` every turn.
+- Update this ledger every turn; replies begin with Ledger Snapshot.
+- Work only within `C:\Users\yasuo\Desktop\restaurant-server`.
 - Replies are in Vietnamese.
-- Do not run DB or migration or server commands autonomously; ask the user to run.
-- Do not run Prisma CLI; the user will run all Prisma CLI commands.
+- Do not run DB/migration/server commands autonomously.
 
 Key decisions:
-- User yeu cau doc `rule/continuity-ledger-rule.mdc` va bat buoc ap dung cho moi request ke tu 2026-04-08.
-- Ap dung skill brainstorming truoc khi vao implementation cho yeu cau tich hop SePay.
-- User chot scope muc 3: tich hop SePay full backend + UI khach (`table-service`) + admin theo doi/doi soat.
-- Chot muc doi soat admin SePay = muc 2 (theo doi + thao tac danh dau da xu ly hoan tien thu cong cho case webhook muon).
-- Chot rule van hanh: SePay chay song song voi cash (khong thay the cash flow hien tai).
-- Chon Approach A: mo rong `payment-service` theo provider-based (`cash` + `sepay`), khong tao microservice moi.
-- User chon thuc thi implementation ngay trong session chat hien tai.
-- User chot muc tieu hien tai: chi can chay duoc voi SePay sandbox.
-- TOSE docs da duoc doc lai (overview + CLI + API): project mo ta theo mo hinh 1 app/1 port.
-- Chot huong deploy: 1 project = 1 container.
-- Chot pham vi: deploy du 10 project (gateway + 8 services + Fe-Admin).
-- Da sua FE login de tach loi /users/login va /users/me, them log ro rang.
-- Da sua api-gateway local CORS de tranh duplicate Access-Control-Allow-Origin.
-- User dong y bat dau pilot order-service cho Dockerfile + deploy config.
-- User quyet dinh chuyen huong pilot tu TOSE sang Railway (DB + 1 service).
+- Provider-based approach in `payment-service` for `cash` + `sepay` (no new microservice).
+- SePay runs alongside cash; sandbox is acceptable for now.
+- Use direct VietQR fallback when SePay API create fails (current runtime state).
 
 State:
   - Done:
-    - Da doc file `rule/continuity-ledger-rule.mdc` va dong bo vao quy trinh lam viec moi turn.
-    - Xac nhan backend/gateway login OK bang PowerShell (goi truc tiep 3005 va qua 3000).
-    - Khoanh vung loi browser la CORS duplicate header va da patch gateway local.
-    - Chot huong deploy TOSE tach BE va FE, moi project 1 container.
-    - Pilot order-service: da chuyen application.yml sang env fallback (DB + service URLs) de local/cloud dung chung.
-    - Pilot order-service: da them `order-service/Dockerfile` va `order-service/.dockerignore`.
-    - Build verify thanh cong cho pilot: `..\\.maven\\apache-maven-3.9.6\\bin\\mvn.cmd -q -DskipTests package` trong `order-service`.
-    - User da cai TOSE CLI va login thanh cong.
-    - User gap loi TOSE CLI khi tao DB: `db_type is required` du da chon MySQL trong prompt.
-    - User tao DB tren web TOSE va nhan loi: `Provisioning failed. Delete and recreate the database.`
-    - User da tao MySQL tren Railway thanh cong va da set 4 bien env cho service order-service.
-    - User-service register da goi thanh cong sau khi dung password dung policy.
-    - Order-service va user-service da tao schema trong Railway MySQL (`orderdb`, `userdb`).
-    - Da sua inventory-service: them `spring-boot-maven-plugin` trong `inventory-service/pom.xml` de tao executable jar.
-    - Da sua inventory-service datasource sang env fallback trong `inventory-service/src/main/resources/application.yml`.
-    - Da them `inventory-service/Dockerfile` va `inventory-service/.dockerignore`.
-    - Build verify thanh cong inventory-service bang portable Maven.
-    - Da sua menu-service datasource sang env fallback trong `menu-service/src/main/resources/application.yml`.
-    - Da sua menu-service inventory URL sang env fallback (`INVENTORY_SERVICE_URL`).
-    - Da them `menu-service/Dockerfile` va `menu-service/.dockerignore`.
-    - Build verify thanh cong menu-service bang portable Maven.
-    - Da sua kitchen-service datasource sang env fallback trong `kitchen-service/src/main/resources/application.yml`.
-    - Da bo sung env service URLs cho kitchen-service (`ORDER_SERVICE_URL`, `MENU_SERVICE_URL`, `INVENTORY_SERVICE_URL`).
-    - Da them `spring-boot-maven-plugin` trong `kitchen-service/pom.xml` de tao executable jar.
-    - Da them `kitchen-service/Dockerfile` va `kitchen-service/.dockerignore`.
-    - Build verify thanh cong kitchen-service bang portable Maven.
-    - Da sua payment-service datasource sang env fallback trong `payment-service/src/main/resources/application.yml`.
-    - Da sua payment-service order URL sang env fallback (`ORDER_SERVICE_URL`).
-    - Da them `spring-boot-maven-plugin` trong `payment-service/pom.xml` de tao executable jar.
-    - Da them `payment-service/Dockerfile` va `payment-service/.dockerignore`.
-    - Build verify thanh cong payment-service bang portable Maven.
-    - Da sua table-service datasource sang env fallback trong `table-service/src/main/resources/application.yml`.
-    - Da them `table-service/Dockerfile` va `table-service/.dockerignore`.
-    - Build verify thanh cong table-service bang portable Maven.
-    - Da sua image-service upload dir sang env fallback trong `image-service/src/main/resources/application.yml`.
-    - Da them `spring-boot-maven-plugin` trong `image-service/pom.xml` de tao executable jar.
-    - Da them `image-service/Dockerfile` va `image-service/.dockerignore`.
-    - Build verify thanh cong image-service bang portable Maven.
-    - Da sua api-gateway route URIs sang env fallback trong `api-gateway/src/main/resources/application.yml`.
-    - Da sua api-gateway CORS allowed origins sang env fallback (`CORS_ALLOWED_ORIGIN_1..3`).
-    - Da them `api-gateway/Dockerfile` va `api-gateway/.dockerignore`.
-    - Build verify thanh cong api-gateway bang portable Maven.
-    - Da sua Fe-Admin rewrite image proxy sang env `NEXT_PUBLIC_GATEWAY_URL` trong `Fe-Admin/next.config.mjs`.
-    - Da them `Fe-Admin/Dockerfile` va `Fe-Admin/.dockerignore` de deploy Railway.
-    - Da cai deps cho Fe-Admin (`npm ci`) va build verify thanh cong (`npm run build`).
-    - Da phan tich loi login Railway `Failed to fetch`: request dang goi sai URL co `:3000` (`https://...railway.app:3000/api/users/login`), kha nang cao la loi network endpoint (khong phai sai credential).
-    - Da xac dinh user dang gap loi tren customer frontend (`table-service`), khong phai Fe-Admin; domain trong anh la `restaurant-server-production-3f43...`.
-    - Da sua `table-service/src/main/resources/static/js/config.js` de bo localStorage override tren production va sanitize URL runtime neu bi dinh `:3000`.
-    - Da sua `table-service/src/main/resources/static/js/app.js` de uu tien `window.API_BASE` thay vi hardcode `host.replace(':3011', ':3000')`.
-    - Da sua `table-service/src/main/resources/static/menu/index.html` de dung `window.API_BASE` cho image URL, bo hardcode `hostname + ':3000'`.
-    - Da commit va push len `origin/main` commit `0bc3ec6` de trigger Railway build lai cho fix table-service.
-    - User da approve toan bo design sections: Architecture, Data Flow, Error Handling, Testing cho SePay.
-    - Da tao design doc `docs/plans/2026-04-08-sepay-integration-design.md` va commit `141b3f0`.
-    - Da dung skill `writing-plans` va tao implementation plan `docs/plans/2026-04-08-sepay-integration-implementation-plan.md`.
-    - Da implement backend SePay trong `payment-service`: them model `PaymentTransaction`, provider layer (`SepayPaymentProvider`), signature verifier, webhook processing, status API, admin transaction APIs, scheduler expire/retry-sync.
-    - Da mo rong `payment-service` websocket events voi `payment.status` de phat trang thai giao dich online.
-    - Da cap nhat `JwtAuthenticationFilter` cho phep public endpoints SePay can thiet (`/sepay/create`, `/sepay/webhook`, `/sepay/{ref}/status`) va giu endpoint admin can auth.
-    - Da cap nhat config SePay env trong `payment-service/src/main/resources/application.yml` va `application-local.yml`.
-    - Da mo rong customer flow tren `table-service` payment modal: chon `cash|sepay`, tao ma SePay, poll status va cap nhat UI.
-    - Da them trang admin SePay trong `Fe-Admin` (`/payments`) gom list/filter giao dich va thao tac danh dau da xu ly hoan tien thu cong.
-    - Da mo rong menu/sidebar va role access cho route `/payments` trong `Fe-Admin`.
-    - Build verify thanh cong: `payment-service` (maven), `table-service` (maven), `Fe-Admin` (`npm run build`).
-    - Da bo sung env alias cho SePay trong `payment-service/application.yml` de tai su dung bien tu du an mau (`SEPAY_API_TOKEN`, `SEPAY_API_BASE_URL`, `SEPAY_IPN_API_KEY`).
-    - Da khoanh vung va fix loi OTP fail ngầm o `user-service`: khi `MAIL_USERNAME` rong se khong con tra success gia; se throw theo `app.mail.fail-on-error`.
-    - Build verify thanh cong `user-service` bang portable Maven sau khi patch email flow.
-    - Da xac dinh nguyen nhan runtime tren Railway: user dang set bien `SMTP_*` thay vi `MAIL_*` nen app van doc rong `MAIL_USERNAME`.
-    - Da bo sung alias env `MAIL_USER/MAIL_PASS` trong `user-service/application.yml` va push commit `83985ee`.
-    - Da bo sung timeout SMTP (`connectiontimeout/timeout/writetimeout`) + env `APP_MAIL_FAIL_ON_ERROR` trong `user-service/application.yml` va push commit `66481ea`.
-    - Da bo sung them alias SMTP day du (`SMTP_HOST/PORT/USER/PASS/...`) trong `user-service/application.yml` de tuong thich ca 2 cach dat ten env.
-    - Da chuan hoa `EmailService` va bo sung thong diep loi chi tiet hon cho nhom loi ket noi SMTP timeout/khong ket noi duoc.
-    - Build verify thanh cong `user-service` sau patch moi.
-    - Da push commit `51b8626` len `origin/main` de Railway redeploy patch SMTP alias + timeout.
-    - Da ra soat lai luong OTP trong code (`AuthService.register -> createOtpLog -> EmailService.sendOtpEmail`) va config `spring.mail`; khong thay bug logic chan gui OTP.
-    - Da nhan log runtime xac nhan root-cause: `MailConnectException` + `SocketTimeoutException: Connect timed out` khi ket noi `smtp.gmail.com:587` tu `user-service` tren Railway.
-    - Da doi chieu docs Railway Outbound Networking: SMTP chi available tren Pro+; Free/Trial/Hobby bi disable outbound SMTP.
-    - Da implement `user-service` gui email uu tien qua Resend API, fallback SMTP khi khong co `RESEND_API_KEY`.
-    - Da bo sung config `app.mail.resend.*` trong `user-service/application.yml`.
-    - Build verify thanh cong `user-service` sau khi them Resend API flow.
-    - Da chuyen provider tu Resend sang SendGrid theo yeu cau user: uu tien SendGrid API, fallback SMTP khi khong co `SENDGRID_API_KEY`.
-    - Da doi config tu `app.mail.resend.*` sang `app.mail.sendgrid.*` trong `user-service/application.yml`.
-    - Build verify thanh cong `user-service` sau khi doi sang SendGrid.
-    - Da xac dinh root-cause QR quet khong chay: URL trong QR dang duoc tao bang `local IP + :3011`, khong on dinh khi quet tu thiet bi khac.
-    - Da sua `table-service` de tao URL QR tu `app.public-base-url` thay vi local IP.
-    - Da bo sung config `app.public-base-url` trong `table-service/application.yml`.
-    - Da chuan hoa du lieu local SQL: `tables.status='available'` -> `Trong` (value hop le theo enum service).
-    - Build verify thanh cong `table-service` sau khi patch QR URL.
+    - Multiple fixes already pushed to `origin/main` for SePay create + fallback QR + webhook auth.
+    - Latest critical fixes:
+      - `e0e3b7c`: VietinBank transfer content uses `SEVQR SP...` in direct QR fallback.
+      - `5de0d2d`: webhook auth accepts `Api_Key` headers.
+      - `ccbc373`: webhook fallback mapping by `amount + recent time` when `transaction_ref` missing.
+    - Webhook is reaching backend (log shows `SePay webhook received`), but mapping failed due to missing `transaction_ref`.
+    - Additional local patch (chua deploy):
+      - `PaymentService.findTransaction(...)` now:
+        - scans full webhook payload recursively to extract `SP...` ref.
+        - adds safer fallback: if amount missing and only one pending tx -> map that tx.
+        - amount fallback now returns newest candidate instead of dropping as ambiguous.
+      - amount extraction supports extra keys: `transferAmountIn`, `transfer_amount_in`, `totalAmount`.
+      - added recursive amount scan with key-based guard (tranh bat nham so tham chieu).
+      - repository added `findTop20ByProviderAndStatusInOrderByCreatedAtDesc(...)`.
   - Now:
-    - Chuan bi commit/push patch QR + SQL de user deploy/test lai.
+    - SQL in Railway Data tab is now running successfully when query is clean (khong dính `LIMIT 100` ghost).
+    - Current DB result: 12/12 giao dich `EXPIRED`; `provider_reference` are `direct-*` or `mock-*`.
+    - `raw_webhook_payload IS NOT NULL` currently returns `0 rows` for listed rows.
   - Next:
-    - Commit + push `main`.
-    - User set `APP_PUBLIC_BASE_URL` dung domain frontend table-service va tao lai QR de test.
-    - User test lai flow register gui OTP (expect 400 neu SMTP sai, 200 neu gui thanh cong).
-    - User review/pull latest va test manual E2E theo luong SePay.
-    - Neu can, tiep tuc vong 2: bo sung verify API provider that va harden webhook payload contract.
+    - Deploy latest local patch from `payment-service` (webhook recursive mapping).
+    - Create 1 new SePay transaction and transfer with exact `SEVQR SP...`.
+    - Recheck:
+      - `/api/payments/sepay/{txRef}/status` becomes `PAID`.
+      - `raw_webhook_payload` saved for that row.
+      - order session closed automatically.
 
 Open questions (UNCONFIRMED if needed):
-- Chua chot Dockerfile strategy cho toan bo service sau pilot (template thu cong hay tose generate + chuan hoa).
-- UNCONFIRMED: Co yeu cau auto-refund qua API provider hay chi danh dau refund thu cong tren admin.
+- Will SePay webhook payload include transfer content containing `SP...` for the new tx?
+- After new patch deploy, does webhook map by recursive `SP...` extraction or pending fallback?
 
 Working set (files/ids/commands):
-- CONTINUITY.md
-- docs/plans/2026-04-08-sepay-integration-design.md
-- docs/plans/2026-04-08-sepay-integration-implementation-plan.md
-- payment-service/src/main/java/com/restaurant/paymentservice/service/PaymentService.java
-- payment-service/src/main/java/com/restaurant/paymentservice/controller/PaymentController.java
-- payment-service/src/main/java/com/restaurant/paymentservice/entity/PaymentTransaction.java
-- payment-service/src/main/java/com/restaurant/paymentservice/provider/*
-- payment-service/src/main/java/com/restaurant/paymentservice/job/PaymentTransactionScheduler.java
-- table-service/src/main/resources/static/index.html
-- table-service/src/main/resources/static/js/app.js
-- Fe-Admin/app/payments/page.tsx
-- Fe-Admin/components/admin-layout.tsx
-- Fe-Admin/lib/auth.ts
+- `CONTINUITY.md`
+- `payment-service/src/main/java/com/restaurant/paymentservice/service/PaymentService.java`
+- `payment-service/src/main/java/com/restaurant/paymentservice/provider/SepayPaymentProvider.java`
+- `payment-service/src/main/java/com/restaurant/paymentservice/provider/SepaySignatureVerifier.java`
+- `payment-service/src/main/java/com/restaurant/paymentservice/controller/PaymentController.java`
+- `payment-service/src/main/java/com/restaurant/paymentservice/repository/PaymentTransactionRepository.java`

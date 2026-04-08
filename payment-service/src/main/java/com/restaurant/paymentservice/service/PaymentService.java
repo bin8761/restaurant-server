@@ -489,6 +489,14 @@ public class PaymentService {
                                                String providerReference,
                                                Map<String, Object> data,
                                                Map<String, Object> parsedPayload) {
+        String deepExtractedRef = firstNonBlank(
+                findTransactionRefRecursively(data),
+                findTransactionRefRecursively(parsedPayload)
+        );
+        if (transactionRef == null || transactionRef.isBlank()) {
+            transactionRef = deepExtractedRef;
+        }
+
         if (transactionRef != null && !transactionRef.isBlank()) {
             Optional<PaymentTransaction> byRef = paymentTransactionRepository.findByTransactionRef(transactionRef);
             if (byRef.isPresent()) {
@@ -501,6 +509,17 @@ public class PaymentService {
 
         BigDecimal webhookAmount = extractWebhookAmount(data, parsedPayload);
         if (webhookAmount == null) {
+            List<PaymentTransaction> pendingCandidates = paymentTransactionRepository
+                    .findTop20ByProviderAndStatusInOrderByCreatedAtDesc(
+                            "sepay",
+                            List.of("PENDING", "PAID_PENDING_SYNC")
+                    );
+            if (pendingCandidates.size() == 1) {
+                PaymentTransaction matched = pendingCandidates.get(0);
+                log.warn("SePay webhook matched by latest pending fallback (without amount): txRef={}",
+                        matched.getTransactionRef());
+                return matched;
+            }
             return null;
         }
 
@@ -543,7 +562,7 @@ public class PaymentService {
         log.warn("SePay webhook amount fallback ambiguous: amount={}, candidateRefs={}",
                 webhookAmount,
                 candidates.stream().map(PaymentTransaction::getTransactionRef).toList());
-        return null;
+        return candidates.get(0);
     }
 
     @SuppressWarnings("unchecked")
@@ -565,17 +584,32 @@ public class PaymentService {
                 "transferAmount",
                 "money",
                 "value",
-                "total_amount");
+                "total_amount",
+                "transferAmountIn",
+                "transfer_amount_in",
+                "totalAmount");
         if (amount != null) {
             return amount;
         }
-        return firstAmount(parsedPayload,
+        amount = firstAmount(parsedPayload,
                 "amount",
                 "transfer_amount",
                 "transferAmount",
                 "money",
                 "value",
-                "total_amount");
+                "total_amount",
+                "transferAmountIn",
+                "transfer_amount_in",
+                "totalAmount");
+        if (amount != null) {
+            return amount;
+        }
+
+        amount = findAmountRecursively(data);
+        if (amount != null) {
+            return amount;
+        }
+        return findAmountRecursively(parsedPayload);
     }
 
     private BigDecimal firstAmount(Map<String, Object> source, String... keys) {
@@ -644,13 +678,81 @@ public class PaymentService {
                 asString(data.get("description")),
                 asString(data.get("transfer_content")),
                 asString(data.get("transferContent")),
-                asString(data.get("transaction_content"))
+                asString(data.get("transaction_content")),
+                asString(data.get("content_in")),
+                asString(data.get("transferContentIn"))
         };
 
         for (String candidate : candidates) {
             String extracted = extractTransactionRef(candidate);
             if (extracted != null) {
                 return extracted;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String findTransactionRefRecursively(Object source) {
+        if (source == null) {
+            return null;
+        }
+        if (source instanceof String text) {
+            return extractTransactionRef(text);
+        }
+        if (source instanceof Map<?, ?> map) {
+            for (Object value : map.values()) {
+                String extracted = findTransactionRefRecursively(value);
+                if (extracted != null && !extracted.isBlank()) {
+                    return extracted;
+                }
+            }
+            return null;
+        }
+        if (source instanceof Collection<?> list) {
+            for (Object value : list) {
+                String extracted = findTransactionRefRecursively(value);
+                if (extracted != null && !extracted.isBlank()) {
+                    return extracted;
+                }
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal findAmountRecursively(Object source) {
+        if (source == null) {
+            return null;
+        }
+        if (source instanceof Number || source instanceof BigDecimal) {
+            return parseAmountValue(source);
+        }
+        if (source instanceof String) {
+            return null;
+        }
+        if (source instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).toLowerCase();
+                Object value = entry.getValue();
+                if (key.contains("amount") || key.contains("money") || key.contains("value") || key.contains("total")) {
+                    BigDecimal parsed = parseAmountValue(value);
+                    if (parsed != null) {
+                        return parsed;
+                    }
+                }
+                BigDecimal amount = findAmountRecursively(value);
+                if (amount != null) {
+                    return amount;
+                }
+            }
+            return null;
+        }
+        if (source instanceof Collection<?> list) {
+            for (Object value : list) {
+                BigDecimal amount = findAmountRecursively(value);
+                if (amount != null) {
+                    return amount;
+                }
             }
         }
         return null;
