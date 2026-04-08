@@ -21,6 +21,13 @@ public interface KitchenQueueRepository extends JpaRepository<KitchenQueue, Inte
             "ORDER BY kq.updated_at ASC", nativeQuery = true)
     List<Map<String, Object>> getQueueWithDetails(@Param("status") String status);
 
+    @Query(value = "SELECT kq.id, kq.order_detail_id, kq.status, kq.updated_at, " +
+            "NULL as quantity, NULL as order_id, NULL as food_name, NULL as food_image, NULL as table_name " +
+            "FROM kitchendb.kitchen_queue kq " +
+            "WHERE (:status IS NULL OR kq.status = :status) " +
+            "ORDER BY kq.updated_at ASC", nativeQuery = true)
+    List<Map<String, Object>> getQueueBasic(@Param("status") String status);
+
     @Query(value = "SELECT " +
             "(SELECT COUNT(*) FROM kitchendb.kitchen_queue WHERE status = N'Chờ chế biến') as pending_count, " +
             "(SELECT COUNT(*) FROM kitchendb.kitchen_queue WHERE status = N'Đang chế biến') as cooking_count, " +

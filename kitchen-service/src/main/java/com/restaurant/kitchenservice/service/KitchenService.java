@@ -32,7 +32,12 @@ public class KitchenService {
     private final SocketService socketService;
 
     public List<Map<String, Object>> getQueue(String status) {
-        return kitchenQueueRepository.getQueueWithDetails(status);
+        try {
+            return kitchenQueueRepository.getQueueWithDetails(status);
+        } catch (RuntimeException ex) {
+            log.warn("Kitchen queue details query failed, fallback to basic queue only: {}", ex.getMessage());
+            return kitchenQueueRepository.getQueueBasic(status);
+        }
     }
 
     public Map<String, Object> getStats() {
