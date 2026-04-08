@@ -42,7 +42,9 @@ public class SepayPaymentProvider implements PaymentProvider {
                                              BigDecimal amount,
                                              String description,
                                              LocalDateTime expireAt) {
-        if (properties.getApiKey() == null || properties.getApiKey().isBlank()) {
+        String apiKey = resolveApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("SePay API key is missing. Fallback to mock QR for transactionRef={}", transactionRef);
             return buildMockResponse(transactionRef, amount, description, expireAt);
         }
 
@@ -57,7 +59,7 @@ public class SepayPaymentProvider implements PaymentProvider {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(properties.getApiKey());
+        headers.setBearerAuth(apiKey);
 
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
         ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
@@ -127,5 +129,31 @@ public class SepayPaymentProvider implements PaymentProvider {
             return "";
         }
         return value.startsWith("/") ? value : "/" + value;
+    }
+
+    private String resolveApiKey() {
+        String configuredKey = normalizeSecret(properties.getApiKey());
+        if (!configuredKey.isBlank()) {
+            return configuredKey;
+        }
+
+        // Runtime fallback in case SEPAY_API_KEY is present but empty and suppresses YAML fallback.
+        String tokenAlias = normalizeSecret(System.getenv("SEPAY_API_TOKEN"));
+        if (!tokenAlias.isBlank()) {
+            return tokenAlias;
+        }
+        return normalizeSecret(System.getenv("SEPAY_API_KEY"));
+    }
+
+    private String normalizeSecret(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.trim();
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+            (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            trimmed = trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        return trimmed;
     }
 }
