@@ -36,13 +36,13 @@ function formatCurrency(amount) {
 }
 
 function formatTime(value) {
-  if (!value) return 'Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â';
+  if (!value) return '--';
   const date = new Date(value);
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDateTime(value) {
-  if (!value) return 'Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â';
+  if (!value) return '--';
   const date = new Date(value);
   return date.toLocaleString('vi-VN', {
     hour: '2-digit',
@@ -85,7 +85,7 @@ async function fetchJson(url, options = {}) {
   const data = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const message = data?.message || 'CĂ„â€Ă‚Â³ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i xÄ‚Â¡Ă‚ÂºĂ‚Â£y ra';
+    const message = data?.message || 'Co loi xay ra';
     throw new Error(message);
   }
 
@@ -142,15 +142,24 @@ function findBuffetFoodById(foodId) {
   return getAllBuffetFoods().find((food) => String(food.id) === String(foodId));
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
+    .toLowerCase();
+}
+
 function getPaymentStatusText(status) {
   switch (status) {
     case 'paid':
-      return 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thanh toĂ„â€Ă‚Â¡n';
+      return 'Da thanh toan';
     case 'pending':
     case 'waiting':
-      return 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚Â»Ă‚Â thanh toĂ„â€Ă‚Â¡n';
+      return 'Dang cho thanh toan';
     default:
-      return 'ChÄ‚â€ Ă‚Â°a thanh toĂ„â€Ă‚Â¡n';
+      return 'Chua thanh toan';
   }
 }
 
@@ -186,23 +195,28 @@ function getRequestPaymentOrderId() {
 }
 
 function normalizeOrderStatus(status) {
-  if (status === 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thanh toĂ„â€Ă‚Â¡n') return 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh';
-  if (status === 'Ä‚â€Ă‚Âang nÄ‚Â¡Ă‚ÂºĂ‚Â¥u') return 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n';
-  return status;
+  const s = normalizeText(status);
+  if (s.includes('thanh toan') || s.includes('da thanh toan')) return 'hoan thanh';
+  if (s.includes('dang nau') || s.includes('che bien')) return 'dang che bien';
+  if (s.includes('huy')) return 'da huy';
+  if (s.includes('cho xac nhan')) return 'cho xac nhan';
+  if (s.includes('cho che bien')) return 'cho che bien';
+  if (s.includes('yeu cau thanh toan')) return 'yeu cau thanh toan';
+  return s;
 }
 
 function getOrderStatusClass(status) {
   const normalizedStatus = normalizeOrderStatus(status);
   switch (normalizedStatus) {
-    case 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh':
+    case 'hoan thanh':
       return 'served';
-    case 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
+    case 'dang che bien':
       return 'preparing';
-    case 'YĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u thanh toĂ„â€Ă‚Â¡n':
-    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n':
-    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
+    case 'yeu cau thanh toan':
+    case 'cho xac nhan':
+    case 'cho che bien':
       return 'pending';
-    case 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚Â»Ă‚Â§y':
+    case 'da huy':
       return 'cancelled';
     default:
       return 'pending';
@@ -210,13 +224,14 @@ function getOrderStatusClass(status) {
 }
 
 function getItemStatusText(status) {
-  switch (status) {
-    case 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
-      return 'Ä‚â€Ă‚Âang nÄ‚Â¡Ă‚ÂºĂ‚Â¥u';
-    case 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh':
-      return 'Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ xong';
-    case 'ChÄ‚Â¡Ă‚Â»Ă‚Â chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n':
-      return 'ChÄ‚Â¡Ă‚Â»Ă‚Â bÄ‚Â¡Ă‚ÂºĂ‚Â¿p';
+  const s = normalizeOrderStatus(status);
+  switch (s) {
+    case 'dang che bien':
+      return 'Dang nau';
+    case 'hoan thanh':
+      return 'Da xong';
+    case 'cho che bien':
+      return 'Cho bep';
     default:
       return status || '';
   }
@@ -229,11 +244,11 @@ function updateHeader() {
   if (!statusText) return;
 
   if (state.isBuffetActive && state.selectedBuffetPackage?.name) {
-    statusText.textContent = 'Buffet Ä‚â€Ă¢â‚¬Ëœang hoÄ‚Â¡Ă‚ÂºĂ‚Â¡t Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng';
+    statusText.textContent = 'Buffet dang hoat dong';
   } else if (state.summary?.total_orders > 0) {
     statusText.textContent = getPaymentStatusText(getCurrentSessionPaymentStatus());
   } else {
-    statusText.textContent = state.table?.status || 'SÄ‚Â¡Ă‚ÂºĂ‚Âµn sĂ„â€Ă‚Â ng';
+    statusText.textContent = state.table?.status || 'San sang';
   }
 }
 
@@ -242,7 +257,7 @@ function updateBuffetBanner() {
   const packageName = document.getElementById('buffet-package-name');
 
   if (state.isBuffetActive) {
-    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet Ä‚â€Ă¢â‚¬Ëœang hoÄ‚Â¡Ă‚ÂºĂ‚Â¡t Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng';
+    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet dang hoat dong';
     banner.classList.remove('hidden');
   } else {
     banner.classList.add('hidden');
@@ -262,8 +277,8 @@ function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.className = 'toast';
   const iconMap = {
-    success: 'Ä‚Â¢Ă…â€œĂ¢â‚¬Å“',
-    error: 'Ä‚Â¢Ă…â€œĂ¢â‚¬Â¢',
+    success: 'OK',
+    error: 'ERR',
     info: 'i',
   };
   toast.innerHTML = `
@@ -293,13 +308,13 @@ function renderCategories() {
   const container = document.getElementById('categories-list');
   if (!container) return;
 
-  const categories = [{ id: 'all', name: 'TÄ‚Â¡Ă‚ÂºĂ‚Â¥t cÄ‚Â¡Ă‚ÂºĂ‚Â£' }, ...state.menuCategories.map((category) => ({
+  const categories = [{ id: 'all', name: 'Tat ca' }, ...state.menuCategories.map((category) => ({
     id: String(category.id),
     name: category.name,
   }))];
 
   container.innerHTML = categories.map((category) => `
-    <button class="category-btn ${state.selectedCategoryId === category.id ? 'active' : ''}" onclick="selectCategory('${category.id.replace(/'/g, "\\'")}')">
+    <button class="category-btn ${state.selectedCategoryId === category.id ? 'active' : ''}" onclick="selectCategory('${category.id.replace(/'/g, "\'")}')">
       ${category.name}
     </button>
   `).join('');
@@ -308,8 +323,8 @@ function renderCategories() {
 function renderMenuItem(food, isBuffet = false) {
   const imageUrl = getImageUrl(food.image_url);
   const imageHtml = imageUrl
-    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\'menu-item-image-placeholder\'>Ă„â€˜Ă…Â¸Ă¢â‚¬Å“Ă‚Â·</div>'">`
-    : `<div class="menu-item-image-placeholder">Ă„â€˜Ă…Â¸Ă¢â‚¬Å“Ă‚Â·</div>`;
+    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\'menu-item-image-placeholder\'>No Image</div>'">`
+    : `<div class="menu-item-image-placeholder">No Image</div>`;
 
   return `
     <div class="menu-item-card" onclick="openFoodModal('${String(food.id)}', ${isBuffet})">
@@ -317,7 +332,7 @@ function renderMenuItem(food, isBuffet = false) {
       <div class="menu-item-info">
         <h4 class="menu-item-name">${food.name}</h4>
         ${food.category_name ? `<p class="menu-item-desc">${food.category_name}</p>` : ''}
-        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIÄ‚Â¡Ă‚Â»Ă¢â‚¬ÂN PHĂ„â€Ă‚Â' : formatCurrency(food.price)}</p>
+        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price)}</p>
       </div>
     </div>
   `;
@@ -338,7 +353,7 @@ function renderMenuItems() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">KhĂ„â€Ă‚Â´ng tĂ„â€Ă‚Â¬m thÄ‚Â¡Ă‚ÂºĂ‚Â¥y mĂ„â€Ă‚Â³n</p><p class="empty-desc">ThÄ‚Â¡Ă‚Â»Ă‚Â­ tÄ‚Â¡Ă‚Â»Ă‚Â« khĂ„â€Ă‚Â³a khĂ„â€Ă‚Â¡c</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">Khong tim thay mon</p><p class="empty-desc">Thu tu khoa khac</p></div>';
     return;
   }
 
@@ -358,19 +373,19 @@ function renderBuffetPackages() {
 
   container.innerHTML = state.buffetPackages.map((pkg) => `
     <div class="buffet-package-card ${pkg.popular ? 'popular' : ''}">
-      ${pkg.popular ? '<span class="buffet-package-badge">PhÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¢ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n</span>' : ''}
+      ${pkg.popular ? '<span class="buffet-package-badge">Pho bien</span>' : ''}
       <div class="buffet-package-header">
         <h3 class="buffet-package-name">${pkg.name}</h3>
         <p class="buffet-package-desc">${pkg.description}</p>
       </div>
       <div class="buffet-package-price">
         <span class="buffet-package-amount">${formatCurrency(pkg.price)}</span>
-        <span class="buffet-package-unit">/ ngÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âi</span>
+        <span class="buffet-package-unit">/ nguoi</span>
       </div>
       <ul class="buffet-package-features">
         ${(pkg.features || []).map((feature) => `<li>${feature}</li>`).join('')}
       </ul>
-      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">ChÄ‚Â¡Ă‚Â»Ă‚Ân gĂ„â€Ă‚Â³i nĂ„â€Ă‚Â y</button>
+      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">Chon goi nay</button>
     </div>
   `).join('');
 }
@@ -386,7 +401,7 @@ function renderBuffetMenu() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">KhĂ„â€Ă‚Â´ng tĂ„â€Ă‚Â¬m thÄ‚Â¡Ă‚ÂºĂ‚Â¥y mĂ„â€Ă‚Â³n buffet</p><p class="empty-desc">ThÄ‚Â¡Ă‚Â»Ă‚Â­ tÄ‚Â¡Ă‚Â»Ă‚Â« khĂ„â€Ă‚Â³a khĂ„â€Ă‚Â¡c</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">Khong tim thay mon buffet</p><p class="empty-desc">Thu tu khoa khac</p></div>';
     return;
   }
 
@@ -495,10 +510,10 @@ function renderOrders() {
     <div class="order-card">
       <div class="order-card-header">
         <div class="order-card-info">
-          <span class="order-id">Ä‚â€Ă‚ÂÄ‚â€ Ă‚Â¡n #${order.id}</span>
+          <span class="order-id">Don #${order.id}</span>
           <span class="order-time">${formatDateTime(order.order_time)}</span>
         </div>
-        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Ä‚â€Ă‚Âang xÄ‚Â¡Ă‚Â»Ă‚Â­ lĂ„â€Ă‚Â½'}</span>
+        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Dang xu ly'}</span>
       </div>
       <div class="order-items-list">
         ${(order.details || []).map((item) => `
@@ -507,7 +522,7 @@ function renderOrders() {
               <span class="order-item-qty">${item.quantity}x</span>
               <div class="order-item-meta">
                 <span class="order-item-name">${item.food_name || 'N/A'}</span>
-                ${state.itemStatuses[item.id]?.status ? `<span class="order-item-status ${state.itemStatuses[item.id].status === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh' ? 'delivered' : ''}">${getItemStatusText(state.itemStatuses[item.id].status)}</span>` : ''}
+                ${state.itemStatuses[item.id]?.status ? `<span class="order-item-status ${normalizeOrderStatus(state.itemStatuses[item.id].status) === 'hoan thanh' ? 'delivered' : ''}">${getItemStatusText(state.itemStatuses[item.id].status)}</span>` : ''}
               </div>
             </div>
             <span class="order-item-price">${formatCurrency((item.price || 0) * (item.quantity || 0))}</span>
@@ -515,7 +530,7 @@ function renderOrders() {
         `).join('')}
       </div>
       <div class="order-card-footer">
-        <span class="order-total-label">ThĂ„â€Ă‚Â nh tiÄ‚Â¡Ă‚Â»Ă‚Ân</span>
+        <span class="order-total-label">Thanh tien</span>
         <span class="order-total-amount">${formatCurrency(order.total)}</span>
       </div>
     </div>
@@ -599,10 +614,10 @@ function openFoodModal(foodId, isBuffet = false) {
   imageContainer.style.display = imageUrl ? 'block' : 'none';
 
   document.getElementById('food-modal-name').textContent = food.name;
-  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'MĂ„â€Ă‚Â³n buffet' : 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n');
-  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIÄ‚Â¡Ă‚Â»Ă¢â‚¬ÂN PHĂ„â€Ă‚Â' : formatCurrency(food.price);
+  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Mon buffet' : 'Mon an');
+  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
-  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'GÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n' : 'ThĂ„â€Ă‚Âªm vĂ„â€Ă‚Â o giÄ‚Â¡Ă‚Â»Ă‚Â';
+  document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Goi mon' : 'Them vao gio';
 
   document.getElementById('food-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -641,14 +656,14 @@ function addToCart(food, quantity) {
     });
   }
   renderCart();
-  showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thĂ„â€Ă‚Âªm ${food.name} vĂ„â€Ă‚Â o giÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng`);
+  showToast(`Da them ${food.name} vao gio hang`);
 }
 
 function removeFromCart(index) {
   const item = state.cart[index];
   state.cart.splice(index, 1);
   renderCart();
-  showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ xĂ„â€Ă‚Â³a ${item.name} khÄ‚Â¡Ă‚Â»Ă‚Âi giÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng`, 'info');
+  showToast(`Da xoa ${item.name} khoi gio hang`, 'info');
 }
 
 function updateCartQuantity(index, delta) {
@@ -691,7 +706,7 @@ async function addToCartFromModal() {
 
 async function placeOrder() {
   if (state.cart.length === 0) {
-    showToast('GiÄ‚Â¡Ă‚Â»Ă‚Â hĂ„â€Ă‚Â ng trÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœng', 'error');
+    showToast('Gio hang trong', 'error');
     return;
   }
 
@@ -707,10 +722,10 @@ async function placeOrder() {
     state.cart = [];
     renderCart();
     await refreshOrders();
-    showToast('Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t mĂ„â€Ă‚Â³n thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng');
+    showToast('Dat mon thanh cong');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t mĂ„â€Ă‚Â³n thÄ‚Â¡Ă‚ÂºĂ‚Â¥t bÄ‚Â¡Ă‚ÂºĂ‚Â¡i', 'error');
+    showToast(error.message || 'Dat mon that bai', 'error');
   }
 }
 
@@ -719,8 +734,8 @@ function selectBuffetPackage(packageId) {
   if (!pkg) return;
   state.selectedBuffetPackage = pkg;
   document.getElementById('buffet-confirm-details').innerHTML = `
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">GĂ„â€Ă‚Â³i buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">GiĂ„â€Ă‚Â¡ / ngÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âi</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
+    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Goi buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
+    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Gia / nguoi</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
   `;
   document.getElementById('buffet-confirm-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -752,10 +767,10 @@ async function confirmBuffetOrder() {
     state.isBuffetActive = false;
     closeBuffetConfirmModal();
     await refreshOrders();
-    showToast('Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ gÄ‚Â¡Ă‚Â»Ă‚Â­i yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u buffet, chÄ‚Â¡Ă‚Â»Ă‚Â nhĂ„â€Ă‚Â  hĂ„â€Ă‚Â ng xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n.');
+    showToast('Da gui yeu cau buffet, cho nha hang xac nhan.');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚ÂºĂ‚Â·t buffet', 'error');
+    showToast(error.message || 'Khong the dat buffet', 'error');
   }
 }
 
@@ -793,10 +808,10 @@ async function loadBuffetMenu() {
 async function loadBuffetPackages() {
   // Buffet packages endpoint not migrated to microservices yet
   try {
-      const res = await fetchJson('/api/menu/buffet-packages');
-      state.buffetPackages = res?.length ? res : [{ id: 1, name: "Buffet TiĂ„â€Ă‚Âªu ChuÄ‚Â¡Ă‚ÂºĂ‚Â©n (ChÄ‚â€ Ă‚Â°a cÄ‚Â¡Ă‚ÂºĂ‚Â¥u hĂ„â€Ă‚Â¬nh CSDL)", price: 299000 }];
+    const res = await fetchJson('/api/menu/buffet-packages');
+    state.buffetPackages = res?.length ? res : [{ id: 1, name: 'Buffet Tieu Chuan (Chua cau hinh CSDL)', price: 299000 }];
   } catch (e) {
-      state.buffetPackages = [{ id: 1, name: "Buffet TiĂ„â€Ă‚Âªu ChuÄ‚Â¡Ă‚ÂºĂ‚Â©n (LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng)", price: 299000 }];
+    state.buffetPackages = [{ id: 1, name: 'Buffet Tieu Chuan (Loi mang)', price: 299000 }];
   }
 }
 
@@ -810,7 +825,7 @@ async function refreshOrders() {
   state.summary = summary && summary.total_orders > 0 ? summary : null;
 
   const buffetOrder = state.orders.find(
-    (order) => order.is_buffet && order.payment_status !== 'paid' && order.status !== 'ChÄ‚Â¡Ă‚Â»Ă‚Â xĂ„â€Ă‚Â¡c nhÄ‚Â¡Ă‚ÂºĂ‚Â­n'
+    (order) => order.is_buffet && order.payment_status !== 'paid'
   );
   state.isBuffetActive = Boolean(summary?.buffet_active || buffetOrder);
 
@@ -857,32 +872,32 @@ function initializeSocket() {
         const payload = JSON.parse(message.body);
         const event = payload.event;
         const data = payload.data || {};
-        
+
         if (event === 'order_created') {
-          showToast('Ä‚â€Ă‚ÂÄ‚â€ Ă‚Â¡n hĂ„â€Ă‚Â ng Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c tÄ‚Â¡Ă‚ÂºĂ‚Â¡o', 'info');
+          showToast('Don hang da duoc tao', 'info');
           await refreshOrders();
         } else if (event === 'buffet_order_created') {
-          showToast('Ä‚â€Ă‚ÂÄ‚Â¡Ă‚ÂºĂ‚Â·t buffet thĂ„â€Ă‚Â nh cĂ„â€Ă‚Â´ng', 'success');
+          showToast('Dat buffet thanh cong', 'success');
           await refreshOrders();
         } else if (event === 'buffet_food_added') {
-          showToast('Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ thĂ„â€Ă‚Âªm mĂ„â€Ă‚Â³n buffet', 'info');
+          showToast('Da them mon buffet', 'info');
           await refreshOrders();
         } else if (event === 'order_status_updated') {
           if (!shouldProcessSocketEvent('order_status_updated', [data.order_id, data.status, data.payment_status])) return;
           const normalizedStatus = normalizeOrderStatus(data.status);
-          if (normalizedStatus === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh') {
-            showToast('MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c phÄ‚Â¡Ă‚Â»Ă‚Â¥c vÄ‚Â¡Ă‚Â»Ă‚Â¥', 'success');
+          if (normalizedStatus === 'hoan thanh') {
+            showToast('Mon an da duoc phuc vu', 'success');
           } else if (data.payment_status === 'waiting') {
-            showToast('Thu ngĂ„â€Ă‚Â¢n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ nhÄ‚Â¡Ă‚ÂºĂ‚Â­n yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u thanh toĂ„â€Ă‚Â¡n', 'info');
+            showToast('Thu ngan da nhan yeu cau thanh toan', 'info');
           }
           await refreshOrders();
         } else if (event === 'payment_completed') {
           if (!shouldProcessSocketEvent('payment_completed', [data.request_id, data.order_id, data.table_id, data.amount])) return;
-          showToast('Thanh toĂ„â€Ă‚Â¡n hoĂ„â€Ă‚Â n tÄ‚Â¡Ă‚ÂºĂ‚Â¥t. CÄ‚Â¡Ă‚ÂºĂ‚Â£m Ä‚â€ Ă‚Â¡n quĂ„â€Ă‚Â½ khĂ„â€Ă‚Â¡ch!', 'success');
+          showToast('Thanh toan hoan tat. Cam on quy khach!', 'success');
           await refreshOrders();
         }
       } catch (e) {
-        console.error('LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i khi parse message order:', e);
+        console.error('Loi khi parse message order:', e);
       }
     });
   });
@@ -904,28 +919,28 @@ function initializeSocket() {
 
         if (!shouldProcessSocketEvent('order_item_status', [data.order_detail_id, data.status, data.updated_at])) return;
 
-        if (data.status === 'Ä‚â€Ă‚Âang chÄ‚Â¡Ă‚ÂºĂ‚Â¿ biÄ‚Â¡Ă‚ÂºĂ‚Â¿n') {
-          showToast(`${data.food_name || 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n'} Ä‚â€Ă¢â‚¬Ëœang Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c bÄ‚Â¡Ă‚ÂºĂ‚Â¿p chuÄ‚Â¡Ă‚ÂºĂ‚Â©n bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹`, 'info');
-        } else if (data.status === 'HoĂ„â€Ă‚Â n thĂ„â€Ă‚Â nh') {
-          showToast(`${data.food_name || 'MĂ„â€Ă‚Â³n Ä‚â€Ă†â€™n'} Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ sÄ‚Â¡Ă‚ÂºĂ‚Âµn sĂ„â€Ă‚Â ng phÄ‚Â¡Ă‚Â»Ă‚Â¥c vÄ‚Â¡Ă‚Â»Ă‚Â¥`, 'success');
+        const s = normalizeOrderStatus(data.status);
+        if (s === 'dang che bien') {
+          showToast(`${data.food_name || 'Mon an'} dang duoc bep chuan bi`, 'info');
+        } else if (s === 'hoan thanh') {
+          showToast(`${data.food_name || 'Mon an'} da san sang phuc vu`, 'success');
         }
 
         if (state.currentTab === 'orders') {
           renderOrders();
         }
       } catch (e) {
-        console.error('LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i khi parse message kitchen item status:', e);
+        console.error('Loi khi parse message kitchen item status:', e);
       }
     });
   });
-
 }
+
 async function initApp() {
   const params = getUrlParams();
   state.tableId = params.tableId;
   state.tableKey = params.tableKey;
 
-  // XÄ‚Â¡Ă‚Â»Ă‚Â­ lĂ„â€Ă‚Â½ trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âng hÄ‚Â¡Ă‚Â»Ă‚Â£p static QR generate-access bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i (VD: bĂ„â€Ă‚Â n Ä‚â€Ă¢â‚¬Ëœang cĂ„â€Ă‚Â³ reservation sÄ‚Â¡Ă‚ÂºĂ‚Â¯p tÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi)
   const accessError = new URLSearchParams(window.location.search).get('qr_access_error');
   if (accessError) {
     showInitError('access_blocked', decodeURIComponent(accessError));
@@ -938,11 +953,9 @@ async function initApp() {
     return;
   }
 
-  // GÄ‚Â¡Ă‚ÂºĂ‚Â¯n deviceSession vĂ„â€Ă‚Â o state mÄ‚Â¡Ă‚Â»Ă¢â€Â¢t lÄ‚Â¡Ă‚ÂºĂ‚Â§n duy nhÄ‚Â¡Ă‚ÂºĂ‚Â¥t
   state.deviceSession = getDeviceSession();
 
   try {
-    // --- Validate key bÄ‚Â¡Ă‚ÂºĂ‚Â±ng POST (key khĂ„â€Ă‚Â´ng lÄ‚Â¡Ă‚Â»Ă¢â€Â¢ trong URL/logs) ---
     const sessionResult = await fetchJson(`/api/tables/${state.tableId}/validate-key`, {
       method: 'POST',
       body: JSON.stringify({
@@ -961,16 +974,14 @@ async function initApp() {
       loadMenu(),
       loadBuffetMenu(),
       loadBuffetPackages(),
-      refreshOrders()
+      refreshOrders(),
     ]);
 
     initializeSocket();
 
-    // Ä‚Â¡Ă‚ÂºĂ‚Â¨n loading, hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n app
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    // KhÄ‚Â¡Ă‚Â»Ă…Â¸i Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă¢â€Â¢ng watchdog Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â phĂ„â€Ă‚Â¡t hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n key expire / staff invalidate giÄ‚Â¡Ă‚Â»Ă‚Â¯a phiĂ„â€Ă‚Âªn
     startSessionWatchdog(sessionResult.seconds_remaining);
 
     console.log('App initialized successfully for table', state.tableId);
@@ -978,27 +989,18 @@ async function initApp() {
     console.error('Initialization error:', error);
     const loadingContent = document.querySelector('.loading-content');
     if (loadingContent) {
-      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi.<br>${error.message || 'Vui lĂ„â€Ă‚Â²ng thÄ‚Â¡Ă‚Â»Ă‚Â­ lÄ‚Â¡Ă‚ÂºĂ‚Â¡i.'}</p>`;
+      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">Khong the ket noi.<br>${error.message || 'Vui long thu lai.'}</p>`;
     }
   }
 }
 
-// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
-// Session lifecycle helpers
-// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
-
-/**
- * showInitError Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â hiÄ‚Â¡Ă‚Â»Ă†â€™n thÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i trĂ„â€Ă‚Âªn mĂ„â€Ă‚Â n hĂ„â€Ă‚Â¬nh loading (trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă¢â‚¬Âºc khi app hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n).
- * @param {string} reason   Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ "not_found" | "expired" | "taken" | "access_blocked" | "missing_key"
- * @param {string} [detail] Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ thĂ„â€Ă‚Â´ng tin thĂ„â€Ă‚Âªm cho mÄ‚Â¡Ă‚Â»Ă¢â€Â¢t sÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœ lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i
- */
 function showInitError(reason, detail) {
   const messages = {
-    expired:        'Link QR Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚ÂºĂ‚Â¿t hÄ‚Â¡Ă‚ÂºĂ‚Â¡n.<br>Vui lĂ„â€Ă‚Â²ng yĂ„â€Ă‚Âªu cÄ‚Â¡Ă‚ÂºĂ‚Â§u mĂ„â€Ă‚Â£ QR mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi tÄ‚Â¡Ă‚Â»Ă‚Â« nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
-    taken:          'MĂ„â€Ă‚Â£ QR nĂ„â€Ă‚Â y Ä‚â€Ă¢â‚¬Ëœang Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c sÄ‚Â¡Ă‚Â»Ă‚Â­ dÄ‚Â¡Ă‚Â»Ă‚Â¥ng trĂ„â€Ă‚Âªn thiÄ‚Â¡Ă‚ÂºĂ‚Â¿t bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ khĂ„â€Ă‚Â¡c.<br>Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
-    not_found:      'Link QR khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡.<br>Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i mĂ„â€Ă‚Â£ QR.',
-    missing_key:    'Link QR thiÄ‚Â¡Ă‚ÂºĂ‚Â¿u thĂ„â€Ă‚Â´ng tin.<br>Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i mĂ„â€Ă‚Â£ QR.',
-    access_blocked: detail || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ mÄ‚Â¡Ă‚Â»Ă…Â¸ phiĂ„â€Ă‚Âªn gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n.<br>Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn.',
+    expired: 'Link QR da het han.<br>Vui long yeu cau ma QR moi tu nhan vien.',
+    taken: 'Ma QR nay dang duoc su dung tren thiet bi khac.<br>Vui long lien he nhan vien.',
+    not_found: 'Link QR khong hop le.<br>Vui long quet lai ma QR.',
+    missing_key: 'Link QR thieu thong tin.<br>Vui long quet lai ma QR.',
+    access_blocked: detail || 'Khong the mo phien goi mon.<br>Vui long lien he nhan vien.',
   };
   const text = messages[reason] || messages.not_found;
   const loadingContent = document.querySelector('.loading-content');
@@ -1006,19 +1008,6 @@ function showInitError(reason, detail) {
     loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">${text}</p>`;
   }
 }
-
-/**
- * startSessionWatchdog Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Â poll validate-key mÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i 60 giĂ„â€Ă‚Â¢y.
- * NÄ‚Â¡Ă‚ÂºĂ‚Â¿u phĂ„â€Ă‚Â¡t hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n session khĂ„â€Ă‚Â´ng cĂ„â€Ă‚Â²n hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ (hÄ‚Â¡Ă‚ÂºĂ‚Â¿t giÄ‚Â¡Ă‚Â»Ă‚Â hoÄ‚Â¡Ă‚ÂºĂ‚Â·c staff invalidate),
- * hiÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡n overlay "phiĂ„â€Ă‚Âªn Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t thĂ„â€Ă‚Âºc" vĂ„â€Ă‚Â  dÄ‚Â¡Ă‚Â»Ă‚Â«ng polling.
- * LÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng tÄ‚Â¡Ă‚ÂºĂ‚Â¡m thÄ‚Â¡Ă‚Â»Ă‚Âi KHĂ„â€Ă¢â‚¬ÂNG kill session (chÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœng mÄ‚Â¡Ă‚ÂºĂ‚Â¥t kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi WiFi ngÄ‚Â¡Ă‚ÂºĂ‚Â¯n).
- *
- * @param {number} initialSeconds Ä‚Â¢Ă¢â€Â¬Ă¢â‚¬Å“ giĂ„â€Ă‚Â¢y cĂ„â€Ă‚Â²n lÄ‚Â¡Ă‚ÂºĂ‚Â¡i khi mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi vĂ„â€Ă‚Â o app (tÄ‚Â¡Ă‚Â»Ă‚Â« validate-key response)
- */
-let _watchdogTimer = null;
-let _watchdogNetErrStreak = 0;
-const WATCHDOG_INTERVAL_MS      = 60_000;   // polling mÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i 60s
-const WATCHDOG_NET_ERR_TOLERANCE = 3;        // chÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹u tÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi Ä‚â€Ă¢â‚¬Ëœa 3 lÄ‚Â¡Ă‚Â»Ă¢â‚¬â€i mÄ‚Â¡Ă‚ÂºĂ‚Â¡ng liĂ„â€Ă‚Âªn tiÄ‚Â¡Ă‚ÂºĂ‚Â¿p (~3 phĂ„â€Ă‚Âºt)
 
 function startSessionWatchdog(initialSeconds) {
   if (_watchdogTimer) clearInterval(_watchdogTimer);
@@ -1067,14 +1056,13 @@ function showSessionEnded(reason) {
   }
 
   const messages = {
-    expired:       { title: 'PhiĂ„â€Ă‚Âªn Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ kÄ‚Â¡Ă‚ÂºĂ‚Â¿t thĂ„â€Ă‚Âºc',       desc: 'ThÄ‚Â¡Ă‚Â»Ă‚Âi gian sÄ‚Â¡Ă‚Â»Ă‚Â­ dÄ‚Â¡Ă‚Â»Ă‚Â¥ng bĂ„â€Ă‚Â n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ hÄ‚Â¡Ă‚ÂºĂ‚Â¿t. CÄ‚Â¡Ă‚ÂºĂ‚Â£m Ä‚â€ Ă‚Â¡n quĂ„â€Ă‚Â½ khĂ„â€Ă‚Â¡ch Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚ÂºĂ‚Â¿n Aurora!' },
-    taken:         { title: 'PhiĂ„â€Ă‚Âªn bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ thay thÄ‚Â¡Ă‚ÂºĂ‚Â¿',        desc: 'PhiĂ„â€Ă‚Âªn mÄ‚Â¡Ă‚Â»Ă¢â‚¬Âºi vÄ‚Â¡Ă‚Â»Ă‚Â«a Ä‚â€Ă¢â‚¬ËœÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Â£c mÄ‚Â¡Ă‚Â»Ă…Â¸ trĂ„â€Ă‚Âªn thiÄ‚Â¡Ă‚ÂºĂ‚Â¿t bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ khĂ„â€Ă‚Â¡c. Vui lĂ„â€Ă‚Â²ng quĂ„â€Ă‚Â©t lÄ‚Â¡Ă‚ÂºĂ‚Â¡i QR Ä‚â€Ă¢â‚¬ËœÄ‚Â¡Ă‚Â»Ă†â€™ tiÄ‚Â¡Ă‚ÂºĂ‚Â¿p tÄ‚Â¡Ă‚Â»Ă‚Â¥c.' },
-    not_found:     { title: 'PhiĂ„â€Ă‚Âªn khĂ„â€Ă‚Â´ng hÄ‚Â¡Ă‚Â»Ă‚Â£p lÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡',       desc: 'PhiĂ„â€Ă‚Âªn gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â£ bÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¹ Ä‚â€Ă¢â‚¬ËœĂ„â€Ă‚Â³ng. Vui lĂ„â€Ă‚Â²ng liĂ„â€Ă‚Âªn hÄ‚Â¡Ă‚Â»Ă¢â‚¬Â¡ nhĂ„â€Ă‚Â¢n viĂ„â€Ă‚Âªn nÄ‚Â¡Ă‚ÂºĂ‚Â¿u cÄ‚Â¡Ă‚ÂºĂ‚Â§n hÄ‚Â¡Ă‚Â»Ă¢â‚¬â€ trÄ‚Â¡Ă‚Â»Ă‚Â£.' },
-    network_error: { title: 'MÄ‚Â¡Ă‚ÂºĂ‚Â¥t kÄ‚Â¡Ă‚ÂºĂ‚Â¿t nÄ‚Â¡Ă‚Â»Ă¢â‚¬Ëœi',              desc: 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ xĂ„â€Ă‚Â¡c minh phiĂ„â€Ă‚Âªn sau nhiÄ‚Â¡Ă‚Â»Ă‚Âu lÄ‚Â¡Ă‚ÂºĂ‚Â§n thÄ‚Â¡Ă‚Â»Ă‚Â­. Vui lĂ„â€Ă‚Â²ng kiÄ‚Â¡Ă‚Â»Ă†â€™m tra wifi vĂ„â€Ă‚Â  tÄ‚Â¡Ă‚ÂºĂ‚Â£i lÄ‚Â¡Ă‚ÂºĂ‚Â¡i trang.' },
+    expired: { title: 'Phien da ket thuc', desc: 'Thoi gian su dung ban da het. Cam on quy khach da den Aurora!' },
+    taken: { title: 'Phien bi thay the', desc: 'Phien moi vua duoc mo tren thiet bi khac. Vui long quet lai QR de tiep tuc.' },
+    not_found: { title: 'Phien khong hop le', desc: 'Phien goi mon da dong. Vui long lien he nhan vien neu can ho tro.' },
+    network_error: { title: 'Mat ket noi', desc: 'Khong the xac minh phien sau nhieu lan thu. Vui long kiem tra wifi va tai lai trang.' },
   };
   const msg = messages[reason] || messages.not_found;
 
-  // XĂ„â€Ă‚Â³a overlay cÄ‚â€¦Ă‚Â© nÄ‚Â¡Ă‚ÂºĂ‚Â¿u cĂ„â€Ă‚Â³ (trÄ‚â€ Ă‚Â°Ä‚Â¡Ă‚Â»Ă‚Âng hÄ‚Â¡Ă‚Â»Ă‚Â£p gÄ‚Â¡Ă‚Â»Ă‚Âi 2 lÄ‚Â¡Ă‚ÂºĂ‚Â§n)
   document.getElementById('session-ended-overlay')?.remove();
 
   const overlay = document.createElement('div');
@@ -1093,16 +1081,12 @@ function showSessionEnded(reason) {
     'backdrop-filter:blur(4px)',
   ].join(';');
   overlay.innerHTML = `
-    <div style="font-size:52px;margin-bottom:20px;">Ă„â€˜Ă…Â¸Ă¢â‚¬ÂĂ¢â‚¬â„¢</div>
+    <div style="font-size:52px;margin-bottom:20px;">!</div>
     <h2 style="color:#fff;font-size:20px;font-weight:600;margin-bottom:12px;">${msg.title}</h2>
     <p style="color:#999;font-size:15px;line-height:1.7;max-width:320px;">${msg.desc}</p>
   `;
   document.body.appendChild(overlay);
 }
-
-// Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬Ä‚Â¢Ă¢â‚¬ÂĂ¢â€Â¬
-
-window.addEventListener('DOMContentLoaded', initApp);
 
 function openPaymentModal() {
   const totalAmount = state.summary?.total_amount || 0;
