@@ -144,6 +144,10 @@ export default function KitchenPage() {
     return true;
   });
 
+  const pendingCount = queueItems.filter((i) => getKitchenStatusKey(i.status) === "pending").length;
+  const cookingCount = queueItems.filter((i) => getKitchenStatusKey(i.status) === "cooking").length;
+  const completedCount = queueItems.filter((i) => getKitchenStatusKey(i.status) === "completed").length;
+
   // Update item status
   const handleUpdateStatus = async (
     id: number,
@@ -309,13 +313,13 @@ export default function KitchenPage() {
               Tất cả ({queueItems.length})
             </TabsTrigger>
             <TabsTrigger value="pending">
-              Chờ ({queueItems.filter((i) => i.status === "Chờ chế biến").length})
+              Chờ ({pendingCount})
             </TabsTrigger>
             <TabsTrigger value="cooking">
-              Đang làm ({queueItems.filter((i) => i.status === "Đang chế biến").length})
+              Đang làm ({cookingCount})
             </TabsTrigger>
             <TabsTrigger value="completed">
-              Xong ({queueItems.filter((i) => i.status === "Hoàn thành").length})
+              Xong ({completedCount})
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -330,7 +334,7 @@ export default function KitchenPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!queueItems.some((i) => i.status === "Hoàn thành")}
+                disabled={completedCount === 0}
               >
                 <Trash2 className="mr-2 size-4" />
                 Dọn dẹp
@@ -374,13 +378,15 @@ export default function KitchenPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredItems.map((item) => (
+          {filteredItems.map((item) => {
+            const statusKey = getKitchenStatusKey(item.status);
+            return (
             <Card
               key={item.id}
               className={`transition-all ${
-                item.status === "Đang chế biến"
+                statusKey === "cooking"
                   ? "ring-2 ring-orange-500"
-                  : item.status === "Hoàn thành"
+                : statusKey === "completed"
                   ? "opacity-75"
                   : ""
               }`}
@@ -422,7 +428,7 @@ export default function KitchenPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  {item.status === "Chờ chế biến" && (
+                  {statusKey === "pending" && (
                     <Button
                       className="flex-1"
                       size="sm"
@@ -434,7 +440,7 @@ export default function KitchenPage() {
                       Bắt đầu làm
                     </Button>
                   )}
-                  {item.status === "Đang chế biến" && (
+                  {statusKey === "cooking" && (
                     <Button
                       className="flex-1 bg-green-600 hover:bg-green-700"
                       size="sm"
@@ -444,7 +450,7 @@ export default function KitchenPage() {
                       Làm xong
                     </Button>
                   )}
-                  {item.status === "Hoàn thành" && (
+                  {statusKey === "completed" && (
                     <div className="flex flex-1 items-center justify-center rounded-md bg-green-100 py-2 text-sm font-medium text-green-800">
                       <CheckCircle2 className="mr-2 size-4" />
                       Sẵn sàng phục vụ
@@ -453,7 +459,8 @@ export default function KitchenPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
