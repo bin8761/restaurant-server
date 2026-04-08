@@ -751,7 +751,7 @@ async function confirmBuffetOrder() {
   }
 }
 
-async function loadTable( {
+async function loadTable() {
   state.table = await fetchJson(`/api/tables/${state.tableId}`);
 }
 
