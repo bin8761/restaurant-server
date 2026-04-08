@@ -813,33 +813,24 @@ async function loadTable() {
   state.table = await fetchJson(`/api/tables/${state.tableId}`);
 }
 
-async function loadMenu() {
+async function loadMenuData() {
   const [categories, foods] = await Promise.all([
     fetchJson('/api/menu/categories'),
     fetchJson('/api/menu/foods')
   ]);
   await detectImageServiceAvailability(foods);
-  state.menuCategories = categories.map(c => ({
+  const mappedCategories = categories.map(c => ({
     ...c, 
     foods: foods.filter(f => String(f.category_id) === String(c.id))
   }));
+  state.menuCategories = mappedCategories;
+  state.buffetFoodCategories = mappedCategories.filter(c => c.foods.length > 0);
+  state.buffetDrinkCategories = [];
+
   const categoryIds = new Set(state.menuCategories.map((category) => String(category.id)));
   if (state.selectedCategoryId !== 'all' && !categoryIds.has(String(state.selectedCategoryId))) {
     state.selectedCategoryId = 'all';
   }
-}
-
-async function loadBuffetMenu() {
-  const foods = await fetchJson('/api/menu/foods');
-  await detectImageServiceAvailability(foods);
-  const categories = await fetchJson('/api/menu/categories');
-  const mapped = categories.map(c => ({
-    ...c, 
-    foods: foods.filter(f => String(f.category_id) === String(c.id))
-  })).filter(c => c.foods.length > 0);
-  state.buffetFoodCategories = mapped;
-  state.buffetDrinkCategories = []; // Not split in current menu logic
-
 }
 
 async function loadBuffetPackages() {
@@ -1008,8 +999,7 @@ async function initApp() {
 
     await Promise.all([
       loadTable(),
-      loadMenu(),
-      loadBuffetMenu(),
+      loadMenuData(),
       loadBuffetPackages(),
       refreshOrders(),
     ]);
