@@ -161,6 +161,25 @@ function getImageUrl(imageUrl) {
   return buildImageUrl(imageUrl);
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildSepayQrImageUrl(result) {
+  const fromProvider = (result?.qr_image_url || '').trim();
+  if (fromProvider) return fromProvider;
+
+  const qrText = (result?.qr_content || result?.pay_url || '').trim();
+  if (!qrText) return '';
+
+  return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrText)}`;
+}
+
 function getAllMenuFoods() {
   return state.menuCategories.flatMap((category) =>
     (category.foods || []).map((food) => ({ ...food, category_name: category.name })),
@@ -489,23 +508,30 @@ function renderCart() {
   emptyEl.classList.add('hidden');
   contentEl.classList.remove('hidden');
 
-  itemsEl.innerHTML = state.cart.map((item, index) => `
-    <div class="cart-item">
-      <div class="cart-item-image">${item.image_url ? `<img src="${getImageUrl(item.image_url)}" alt="${item.name}">` : ''}</div>
-      <div class="cart-item-info">
-        <h4 class="cart-item-name">${item.name}</h4>
-        <p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>
-      </div>
-      <div class="cart-item-actions">
-        <button class="cart-item-remove" onclick="removeFromCart(${index})">Ă„â€˜Ă…Â¸Ă¢â‚¬â€Ă¢â‚¬Ëœ</button>
-        <div class="quantity-selector">
-          <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
-          <span class="quantity-value">${item.quantity}</span>
-          <button class="quantity-btn" onclick="updateCartQuantity(${index}, 1)">+</button>
+  itemsEl.innerHTML = state.cart.map((item, index) => {
+    const cartImageUrl = getImageUrl(item.image_url);
+    const imageHtml = cartImageUrl
+      ? `<img src="${cartImageUrl}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\\'cart-item-image-placeholder\\'>No Image</div>'">`
+      : `<div class="cart-item-image-placeholder">No Image</div>`;
+
+    return `
+      <div class="cart-item">
+        <div class="cart-item-image">${imageHtml}</div>
+        <div class="cart-item-info">
+          <h4 class="cart-item-name">${item.name}</h4>
+          <p class="cart-item-price">${formatCurrency(item.price * item.quantity)}</p>
+        </div>
+        <div class="cart-item-actions">
+          <button class="cart-item-remove" onclick="removeFromCart(${index})">Xoa</button>
+          <div class="quantity-selector">
+            <button class="quantity-btn" onclick="updateCartQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+            <span class="quantity-value">${item.quantity}</span>
+            <button class="quantity-btn" onclick="updateCartQuantity(${index}, 1)">+</button>
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   totalEl.textContent = formatCurrency(totalAmount);
 }
@@ -730,11 +756,11 @@ async function addToCartFromModal() {
           buffet_package_name: state.selectedBuffetPackage?.name || null,
         }),
       });
-      showToast(`Ä‚â€Ă‚ÂĂ„â€Ă‚Â£ gÄ‚Â¡Ă‚Â»Ă‚Âi ${state.modalFood.name}`);
+      showToast(`Da goi ${state.modalFood.name}`);
       closeFoodModal();
       await refreshOrders();
     } catch (error) {
-      showToast(error.message || 'KhĂ„â€Ă‚Â´ng thÄ‚Â¡Ă‚Â»Ă†â€™ gÄ‚Â¡Ă‚Â»Ă‚Âi mĂ„â€Ă‚Â³n buffet', 'error');
+      showToast(error.message || 'Khong the goi mon buffet', 'error');
     }
     return;
   }
@@ -742,7 +768,6 @@ async function addToCartFromModal() {
   addToCart(state.modalFood, state.modalQuantity);
   closeFoodModal();
 }
-
 async function placeOrder() {
   if (state.cart.length === 0) {
     showToast('Gio hang trong', 'error');
@@ -1153,26 +1178,50 @@ function updatePaymentMethodUI() {
   if (!submitBtn || !note || !qrSection) return;
 
   if (state.paymentMethod === 'sepay') {
-    submitBtn.textContent = 'Tạo mã SePay';
-    note.textContent = 'Khách có thể chuyển khoản trực tiếp bằng SePay và hệ thống sẽ tự cập nhật trạng thái.';
+    submitBtn.textContent = 'Tao ma SePay';
+    note.textContent = 'Khach co the chuyen khoan truc tiep bang SePay va he thong se tu cap nhat trang thai.';
     qrSection.classList.remove('hidden');
     if (statusText && !statusText.textContent) {
-      statusText.textContent = 'Đang chờ tạo mã...';
+      statusText.textContent = 'Dang cho tao ma...';
     }
     if (qrContent && !qrContent.textContent) {
-      qrContent.textContent = 'Chưa có mã';
+      qrContent.textContent = 'Chua co ma';
     }
   } else {
-    submitBtn.textContent = 'Gửi yêu cầu thanh toán';
-    note.textContent = 'Yêu cầu thanh toán sẽ được gửi đến thu ngân. Nhân viên sẽ đến bàn để hỗ trợ thanh toán.';
+    submitBtn.textContent = 'Gui yeu cau thanh toan';
+    note.textContent = 'Yeu cau thanh toan se duoc gui den thu ngan. Nhan vien se den ban de ho tro thanh toan.';
     qrSection.classList.add('hidden');
   }
+}
+
+function renderSepayQrContent(result) {
+  const qrContentEl = document.getElementById('sepay-qr-content');
+  if (!qrContentEl) return;
+
+  const qrImageUrl = buildSepayQrImageUrl(result);
+  const rawQrText = (result?.qr_content || result?.pay_url || '').trim();
+  const payUrl = (result?.pay_url || '').trim();
+
+  if (!qrImageUrl && !rawQrText) {
+    qrContentEl.textContent = 'Da tao ma thanh toan. Vui long thu lai sau.';
+    return;
+  }
+
+  const safeRaw = escapeHtml(rawQrText);
+  const safePay = escapeHtml(payUrl);
+  const safeImage = escapeHtml(qrImageUrl);
+
+  qrContentEl.innerHTML = `
+    ${qrImageUrl ? `<img class="sepay-qr-image" src="${safeImage}" alt="SePay QR" onerror="this.remove()">` : ''}
+    ${payUrl ? `<a class="sepay-pay-link" href="${safePay}" target="_blank" rel="noopener noreferrer">Mo link thanh toan</a>` : ''}
+    ${rawQrText ? `<div class="sepay-qr-raw">${safeRaw}</div>` : ''}
+  `;
 }
 
 async function submitPaymentRequest() {
   const requestOrderId = getRequestPaymentOrderId();
   if (!requestOrderId) {
-    showToast('Chưa có đơn hàng để thanh toán', 'error');
+    showToast('Chua co don hang de thanh toan', 'error');
     return;
   }
 
@@ -1188,19 +1237,18 @@ async function submitPaymentRequest() {
     });
     closePaymentModal();
     await refreshOrders();
-    showToast('Đã gửi yêu cầu thanh toán');
+    showToast('Da gui yeu cau thanh toan');
   } catch (error) {
-    showToast(error.message || 'Không thể gửi yêu cầu thanh toán', 'error');
+    showToast(error.message || 'Khong the gui yeu cau thanh toan', 'error');
   }
 }
 
 async function submitSepayPayment(orderId) {
   const statusText = document.getElementById('sepay-status-text');
-  const qrContent = document.getElementById('sepay-qr-content');
   const totalAmount = state.summary?.total_amount || 0;
 
   try {
-    if (statusText) statusText.textContent = 'Đang tạo mã SePay...';
+    if (statusText) statusText.textContent = 'Dang tao ma SePay...';
     const result = await fetchJson('/api/payments/sepay/create', {
       method: 'POST',
       body: JSON.stringify({
@@ -1212,11 +1260,10 @@ async function submitSepayPayment(orderId) {
     });
 
     state.sepayTransactionRef = result.transaction_ref;
-    if (qrContent) {
-      qrContent.textContent = result.qr_content || result.pay_url || 'Mã QR đã tạo. Vui lòng dùng app ngân hàng/SePay để thanh toán.';
-    }
+    renderSepayQrContent(result);
+
     if (statusText) {
-      statusText.textContent = `Mã đã tạo - trạng thái: ${result.status || 'PENDING'}`;
+      statusText.textContent = `Ma da tao - trang thai: ${result.status || 'PENDING'}`;
     }
 
     if (state.sepayPollingTimer) {
@@ -1229,29 +1276,28 @@ async function submitSepayPayment(orderId) {
       try {
         const statusRes = await fetchJson(`/api/payments/sepay/${encodeURIComponent(state.sepayTransactionRef)}/status`);
         const status = (statusRes.status || '').toUpperCase();
-        if (statusText) statusText.textContent = `Trạng thái: ${status || 'PENDING'}`;
+        if (statusText) statusText.textContent = `Trang thai: ${status || 'PENDING'}`;
 
         if (status === 'PAID') {
           clearInterval(state.sepayPollingTimer);
           state.sepayPollingTimer = null;
           closePaymentModal();
           await refreshOrders();
-          showToast('Thanh toán SePay thành công', 'success');
+          showToast('Thanh toan SePay thanh cong', 'success');
         } else if (status === 'FAILED' || status === 'EXPIRED') {
           clearInterval(state.sepayPollingTimer);
           state.sepayPollingTimer = null;
-          showToast(`Thanh toán SePay ${status === 'FAILED' ? 'thất bại' : 'hết hạn'}`, 'error');
+          showToast(`Thanh toan SePay ${status === 'FAILED' ? 'that bai' : 'het han'}`, 'error');
         }
       } catch (err) {
         console.error('SePay status polling error', err);
       }
     }, 3000);
   } catch (error) {
-    if (statusText) statusText.textContent = 'Không thể tạo mã SePay';
-    showToast(error.message || 'Không thể tạo thanh toán SePay', 'error');
+    if (statusText) statusText.textContent = 'Khong the tao ma SePay';
+    showToast(error.message || 'Khong the tao thanh toan SePay', 'error');
   }
 }
-
 function bindUiEvents() {
   const searchInput = document.getElementById('search-input');
   const clearSearchBtn = document.getElementById('clear-search');
@@ -1286,3 +1332,4 @@ document.addEventListener('DOMContentLoaded', () => {
   bindUiEvents();
   initApp();
 });
+
