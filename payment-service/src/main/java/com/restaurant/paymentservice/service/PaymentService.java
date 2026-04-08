@@ -220,6 +220,7 @@ public class PaymentService {
             tx.setProviderReference(providerReference);
         }
 
+        BigDecimal webhookAmount = extractWebhookAmount(data, parsedPayload);
         String incomingStatus = normalizeSepayStatus(firstNonBlank(
                 asString(data.get("status")),
                 asString(data.get("payment_status")),
@@ -234,6 +235,27 @@ public class PaymentService {
             log.warn("SePay webhook status missing, infer PAID from incoming-money event: txRef={}, providerRef={}",
                     tx.getTransactionRef(),
                     providerReference);
+        }
+        if ("UNKNOWN".equals(incomingStatus)
+                && webhookAmount != null
+                && webhookAmount.compareTo(BigDecimal.ZERO) > 0
+                && ("PENDING".equals(tx.getStatus()) || "PAID_PENDING_SYNC".equals(tx.getStatus()))) {
+            incomingStatus = "PAID";
+            log.warn("SePay webhook status missing, infer PAID from positive amount on pending tx: txRef={}, amount={}, providerRef={}",
+                    tx.getTransactionRef(),
+                    webhookAmount,
+                    providerReference);
+        }
+        if (!Set.of("PAID", "FAILED", "EXPIRED").contains(incomingStatus)
+                && webhookAmount != null
+                && webhookAmount.compareTo(BigDecimal.ZERO) > 0
+                && ("PENDING".equals(tx.getStatus()) || "PAID_PENDING_SYNC".equals(tx.getStatus()))) {
+            log.warn("SePay webhook non-terminal status '{}', infer PAID from positive amount: txRef={}, amount={}, providerRef={}",
+                    incomingStatus,
+                    tx.getTransactionRef(),
+                    webhookAmount,
+                    providerReference);
+            incomingStatus = "PAID";
         }
 
         if ("PAID".equals(tx.getStatus()) && "PAID".equals(incomingStatus)) {
