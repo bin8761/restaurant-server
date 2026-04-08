@@ -489,6 +489,7 @@ public class PaymentService {
                                                String providerReference,
                                                Map<String, Object> data,
                                                Map<String, Object> parsedPayload) {
+        LocalDateTime now = LocalDateTime.now();
         String deepExtractedRef = firstNonBlank(
                 findTransactionRefRecursively(data),
                 findTransactionRefRecursively(parsedPayload)
@@ -514,10 +515,33 @@ public class PaymentService {
                             "sepay",
                             List.of("PENDING", "PAID_PENDING_SYNC")
                     );
+            List<PaymentTransaction> recentPending = pendingCandidates.stream()
+                    .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(now.minusMinutes(30)))
+                    .collect(Collectors.toList());
+            if (recentPending.size() == 1) {
+                PaymentTransaction matched = recentPending.get(0);
+                log.warn("SePay webhook matched by recent pending fallback (without amount): txRef={}",
+                        matched.getTransactionRef());
+                return matched;
+            }
+            if (!recentPending.isEmpty()) {
+                PaymentTransaction matched = recentPending.get(0);
+                log.warn("SePay webhook matched by latest recent pending fallback (without amount): txRef={}, candidates={}",
+                        matched.getTransactionRef(),
+                        recentPending.stream().map(PaymentTransaction::getTransactionRef).toList());
+                return matched;
+            }
             if (pendingCandidates.size() == 1) {
                 PaymentTransaction matched = pendingCandidates.get(0);
                 log.warn("SePay webhook matched by latest pending fallback (without amount): txRef={}",
                         matched.getTransactionRef());
+                return matched;
+            }
+            if (!pendingCandidates.isEmpty()) {
+                PaymentTransaction matched = pendingCandidates.get(0);
+                log.warn("SePay webhook matched by latest pending fallback (without amount, broad): txRef={}, candidates={}",
+                        matched.getTransactionRef(),
+                        pendingCandidates.stream().map(PaymentTransaction::getTransactionRef).toList());
                 return matched;
             }
             return null;
@@ -530,7 +554,7 @@ public class PaymentService {
                         webhookAmount
                 )
                 .stream()
-                .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(LocalDateTime.now().minusHours(6)))
+                .filter(tx -> tx.getCreatedAt() != null && tx.getCreatedAt().isAfter(now.minusHours(6)))
                 .collect(Collectors.toList());
 
         if (candidates.isEmpty()) {
