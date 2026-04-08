@@ -505,7 +505,13 @@ public class PaymentService {
             }
         }
         if (providerReference != null && !providerReference.isBlank()) {
-            return paymentTransactionRepository.findByProviderAndProviderReference("sepay", providerReference).orElse(null);
+            Optional<PaymentTransaction> byProviderRef = paymentTransactionRepository
+                    .findByProviderAndProviderReference("sepay", providerReference);
+            if (byProviderRef.isPresent()) {
+                return byProviderRef.get();
+            }
+            log.warn("SePay webhook providerReference not found, continue fallback: providerReference={}",
+                    providerReference);
         }
 
         BigDecimal webhookAmount = extractWebhookAmount(data, parsedPayload);

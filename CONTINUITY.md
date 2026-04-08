@@ -30,6 +30,9 @@ State:
       - amount extraction supports extra keys: `transferAmountIn`, `transfer_amount_in`, `totalAmount`.
       - added recursive amount scan with key-based guard (tranh bat nham so tham chieu).
       - repository added `findTop20ByProviderAndStatusInOrderByCreatedAtDesc(...)`.
+      - Fixed critical bug in webhook mapping:
+        - previously if webhook had `providerReference` but DB did not match, code returned `null` immediately.
+        - now it logs and continues to fallback mapping (`SP...` recursive / amount / recent pending).
   - Now:
     - SQL in Railway Data tab is now running successfully when query is clean (khong dính `LIMIT 100` ghost).
     - Current DB result: 12/12 giao dich `EXPIRED`; `provider_reference` are `direct-*` or `mock-*`.
