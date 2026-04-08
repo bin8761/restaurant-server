@@ -16,16 +16,38 @@ public class SepaySignatureVerifier {
     }
 
     public boolean isValid(String payload, String signature) {
+        return isValid(payload, signature, null, null, null);
+    }
+
+    public boolean isValid(String payload,
+                           String signature,
+                           String authorizationHeader,
+                           String xApiKeyHeader,
+                           String apiKeyHeader) {
         String secret = properties.getWebhookSecret();
         if (secret == null || secret.isBlank()) {
             return true;
         }
-        if (signature == null || signature.isBlank()) {
-            return false;
+
+        String normalizedSecret = normalizeToken(secret);
+        String normalizedSignature = signature == null ? "" : signature.trim();
+        if (!normalizedSignature.isBlank()) {
+            String expected = hmacSha256Hex(secret, payload == null ? "" : payload);
+            return expected.equalsIgnoreCase(normalizedSignature);
         }
 
-        String expected = hmacSha256Hex(secret, payload == null ? "" : payload);
-        return expected.equalsIgnoreCase(signature.trim());
+        String authToken = normalizeToken(authorizationHeader);
+        if (!authToken.isBlank() && normalizedSecret.equals(authToken)) {
+            return true;
+        }
+
+        String xApiKey = normalizeToken(xApiKeyHeader);
+        if (!xApiKey.isBlank() && normalizedSecret.equals(xApiKey)) {
+            return true;
+        }
+
+        String apiKey = normalizeToken(apiKeyHeader);
+        return !apiKey.isBlank() && normalizedSecret.equals(apiKey);
     }
 
     private String hmacSha256Hex(String secret, String payload) {
@@ -37,5 +59,28 @@ public class SepaySignatureVerifier {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    private String normalizeToken(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.trim();
+        if ((normalized.startsWith("\"") && normalized.endsWith("\"")) ||
+            (normalized.startsWith("'") && normalized.endsWith("'"))) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+
+        String lower = normalized.toLowerCase();
+        if (lower.startsWith("apikey ")) {
+            return normalized.substring(7).trim();
+        }
+        if (lower.startsWith("api_key ")) {
+            return normalized.substring(8).trim();
+        }
+        if (lower.startsWith("bearer ")) {
+            return normalized.substring(7).trim();
+        }
+        return normalized;
     }
 }

@@ -58,12 +58,22 @@ public class PaymentController {
     public ResponseEntity<Map<String, Object>> sepayWebhook(
             @RequestBody String rawPayload,
             @RequestHeader(value = "X-SePay-Signature", required = false) String signature,
-            @RequestHeader(value = "X-Sepay-Signature", required = false) String signatureAlt) {
+            @RequestHeader(value = "X-Sepay-Signature", required = false) String signatureAlt,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestHeader(value = "X-Api-Key", required = false) String xApiKeyHeader,
+            @RequestHeader(value = "Api-Key", required = false) String apiKeyHeader) {
 
         String effectiveSignature = signature != null ? signature : signatureAlt;
         try {
-            return ResponseEntity.ok(paymentService.processSepayWebhook(rawPayload, effectiveSignature));
+            return ResponseEntity.ok(paymentService.processSepayWebhook(
+                    rawPayload,
+                    effectiveSignature,
+                    authorizationHeader,
+                    xApiKeyHeader,
+                    apiKeyHeader
+            ));
         } catch (SecurityException ex) {
+            log.warn("SePay webhook rejected: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false, "error", ex.getMessage()));
         } catch (Exception ex) {
             log.error("SePay webhook processing failed", ex);

@@ -176,12 +176,16 @@ public class PaymentService {
     }
 
     @Transactional
-    public Map<String, Object> processSepayWebhook(String rawPayload, String signature) {
+    public Map<String, Object> processSepayWebhook(String rawPayload,
+                                                   String signature,
+                                                   String authorizationHeader,
+                                                   String xApiKeyHeader,
+                                                   String apiKeyHeader) {
         log.info("SePay webhook received: signaturePresent={}, payloadSize={}",
                 signature != null && !signature.isBlank(),
                 rawPayload == null ? 0 : rawPayload.length());
 
-        if (!sepaySignatureVerifier.isValid(rawPayload, signature)) {
+        if (!sepaySignatureVerifier.isValid(rawPayload, signature, authorizationHeader, xApiKeyHeader, apiKeyHeader)) {
             throw new SecurityException("Invalid SePay signature");
         }
 
