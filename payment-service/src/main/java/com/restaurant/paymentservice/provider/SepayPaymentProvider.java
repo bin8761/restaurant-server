@@ -469,11 +469,7 @@ public class SepayPaymentProvider implements PaymentProvider {
         if (!account.isBlank()) {
             return account;
         }
-        account = normalizeSecret(properties.getBankAccountId());
-        if (!account.isBlank()) {
-            return account;
-        }
-        return normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT_ID"));
+        return "";
     }
 
     private String truncate(String value, int maxLength) {
