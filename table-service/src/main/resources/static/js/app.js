@@ -240,12 +240,12 @@ function normalizeText(value) {
 function getPaymentStatusText(status) {
   switch (status) {
     case 'paid':
-      return 'Da thanh toan';
+      return 'Đã thanh toán';
     case 'pending':
     case 'waiting':
-      return 'Dang cho thanh toan';
+      return 'Đang chờ thanh toán';
     default:
-      return 'Chua thanh toan';
+      return 'Chưa thanh toán';
   }
 }
 
@@ -313,11 +313,11 @@ function getItemStatusText(status) {
   const s = normalizeOrderStatus(status);
   switch (s) {
     case 'dang che bien':
-      return 'Dang nau';
+      return 'Đang nấu';
     case 'hoan thanh':
-      return 'Da xong';
+      return 'Đã xong';
     case 'cho che bien':
-      return 'Cho bep';
+      return 'Chờ bếp';
     default:
       return status || '';
   }
@@ -330,11 +330,11 @@ function updateHeader() {
   if (!statusText) return;
 
   if (state.isBuffetActive && state.selectedBuffetPackage?.name) {
-    statusText.textContent = 'Buffet dang hoat dong';
+    statusText.textContent = 'Buffet đang hoạt động';
   } else if (state.summary?.total_orders > 0) {
     statusText.textContent = getPaymentStatusText(getCurrentSessionPaymentStatus());
   } else {
-    statusText.textContent = state.table?.status || 'San sang';
+    statusText.textContent = state.table?.status || 'Sẵn sàng';
   }
 }
 
@@ -343,7 +343,7 @@ function updateBuffetBanner() {
   const packageName = document.getElementById('buffet-package-name');
 
   if (state.isBuffetActive) {
-    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet dang hoat dong';
+    packageName.textContent = state.selectedBuffetPackage?.name || state.orders.find((o) => o.is_buffet)?.buffet_package_name || 'Buffet đang hoạt động';
     banner.classList.remove('hidden');
   } else {
     banner.classList.add('hidden');
@@ -433,7 +433,7 @@ function renderMenuItems() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">Khong tim thay mon</p><p class="empty-desc">Thu tu khoa khac</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">Không tìm thấy món</p><p class="empty-desc">Thử từ khóa khác</p></div>';
     return;
   }
 
@@ -481,7 +481,7 @@ function renderBuffetMenu() {
   })).filter((category) => category.foods.length > 0);
 
   if (categories.length === 0) {
-    container.innerHTML = '<div class="empty-state"><p class="empty-title">Khong tim thay mon buffet</p><p class="empty-desc">Thu tu khoa khac</p></div>';
+    container.innerHTML = '<div class="empty-state"><p class="empty-title">Không tìm thấy món buffet</p><p class="empty-desc">Thử từ khóa khác</p></div>';
     return;
   }
 
@@ -600,7 +600,7 @@ function renderOrders() {
           <span class="order-id">Don #${order.id}</span>
           <span class="order-time">${formatDateTime(order.order_time)}</span>
         </div>
-        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Dang xu ly'}</span>
+        <span class="order-status ${getOrderStatusClass(displayStatus)}">${displayStatus || 'Đang xử lý'}</span>
       </div>
       <div class="order-items-list">
         ${(order.details || []).map((item) => `
@@ -701,7 +701,7 @@ function openFoodModal(foodId, isBuffet = false) {
   imageContainer.style.display = imageUrl ? 'block' : 'none';
 
   document.getElementById('food-modal-name').textContent = food.name;
-  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Mon buffet' : 'Mon an');
+  document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Món buffet' : 'Món ăn');
   document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
   document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi món' : 'Thêm món';
@@ -750,7 +750,7 @@ function removeFromCart(index) {
   const item = state.cart[index];
   state.cart.splice(index, 1);
   renderCart();
-  showToast(`Da xoa ${item.name} khoi gio hang`, 'info');
+  showToast(`Đã xóa ${item.name} khỏi món ăn`, 'info');
 }
 
 function updateCartQuantity(index, delta) {
@@ -778,11 +778,11 @@ async function addToCartFromModal() {
           buffet_package_name: state.selectedBuffetPackage?.name || null,
         }),
       });
-      showToast(`Da goi ${state.modalFood.name}`);
+      showToast(`Đã gọi ${state.modalFood.name}`);
       closeFoodModal();
       await refreshOrders();
     } catch (error) {
-      showToast(error.message || 'Khong the goi mon buffet', 'error');
+      showToast(error.message || 'Không thể gọi món buffet', 'error');
     }
     return;
   }
@@ -808,10 +808,10 @@ async function placeOrder() {
     state.cart = [];
     renderCart();
     await refreshOrders();
-    showToast('Dat mon thanh cong');
+    showToast('Đặt món thành công');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'Dat mon that bai', 'error');
+    showToast(error.message || 'Đặt món thất bại', 'error');
   }
 }
 
@@ -853,10 +853,10 @@ async function confirmBuffetOrder() {
     state.isBuffetActive = false;
     closeBuffetConfirmModal();
     await refreshOrders();
-    showToast('Da gui yeu cau buffet, cho nha hang xac nhan.');
+    showToast('Đã gửi yêu cầu buffet, chờ nhà hàng xác nhận.');
     switchTab('orders');
   } catch (error) {
-    showToast(error.message || 'Khong the dat buffet', 'error');
+    showToast(error.message || 'Không thể đặt buffet', 'error');
   }
 }
 
@@ -888,9 +888,9 @@ async function loadBuffetPackages() {
   // Buffet packages endpoint not migrated to microservices yet
   try {
     const res = await fetchJson('/api/menu/buffet-packages');
-    state.buffetPackages = res?.length ? res : [{ id: 1, name: 'Buffet Tieu Chuan (Chua cau hinh CSDL)', price: 299000 }];
+    state.buffetPackages = res?.length ? res : [{ id: 1, name: 'Buffet Tiêu Chuẩn (Chưa cấu hình CSDL)', price: 299000 }];
   } catch (e) {
-    state.buffetPackages = [{ id: 1, name: 'Buffet Tieu Chuan (Loi mang)', price: 299000 }];
+    state.buffetPackages = [{ id: 1, name: 'Buffet Tiêu Chuẩn (Lỗi mạng)', price: 299000 }];
   }
 }
 
@@ -956,23 +956,23 @@ function initializeSocket() {
           showToast('Hóa đơn đã được tạo', 'info');
           await refreshOrders();
         } else if (event === 'buffet_order_created') {
-          showToast('Dat buffet thanh cong', 'success');
+          showToast('Đặt buffet thành công', 'success');
           await refreshOrders();
         } else if (event === 'buffet_food_added') {
-          showToast('Da them mon buffet', 'info');
+          showToast('Đã thêm món buffet', 'info');
           await refreshOrders();
         } else if (event === 'order_status_updated') {
           if (!shouldProcessSocketEvent('order_status_updated', [data.order_id, data.status, data.payment_status])) return;
           const normalizedStatus = normalizeOrderStatus(data.status);
           if (normalizedStatus === 'hoan thanh') {
-            showToast('Mon an da duoc phuc vu', 'success');
+            showToast('Món ăn đã được phục vụ', 'success');
           } else if (data.payment_status === 'waiting') {
-            showToast('Thu ngan da nhan yeu cau thanh toan', 'info');
+            showToast('Thu ngân đã nhận yêu cầu thanh toán', 'info');
           }
           await refreshOrders();
         } else if (event === 'payment_completed') {
           if (!shouldProcessSocketEvent('payment_completed', [data.request_id, data.order_id, data.table_id, data.amount])) return;
-          showToast('Thanh toan hoan tat. Cam on quy khach!', 'success');
+          showToast('Thanh toán hoàn tất. Cảm ơn quý khách!', 'success');
           await refreshOrders();
         }
       } catch (e) {
@@ -1000,9 +1000,9 @@ function initializeSocket() {
 
         const s = normalizeOrderStatus(data.status);
         if (s === 'dang che bien') {
-          showToast(`${data.food_name || 'Mon an'} dang duoc bep chuan bi`, 'info');
+          showToast(`${data.food_name || 'Món ăn'} đang được bếp chuẩn bị`, 'info');
         } else if (s === 'hoan thanh') {
-          showToast(`${data.food_name || 'Mon an'} da san sang phuc vu`, 'success');
+          showToast(`${data.food_name || 'Món ăn'} đã sẵn sàng phục vụ`, 'success');
         }
 
         if (state.currentTab === 'orders') {
@@ -1067,18 +1067,18 @@ async function initApp() {
     console.error('Initialization error:', error);
     const loadingContent = document.querySelector('.loading-content');
     if (loadingContent) {
-      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">Khong the ket noi.<br>${error.message || 'Vui long thu lai.'}</p>`;
+      loadingContent.innerHTML = `<div class="loading-logo">Aurora</div><p style="color:#e57373;margin-top:16px;font-size:14px;">Không thể kết nối.<br>${error.message || 'Vui lòng thử lại.'}</p>`;
     }
   }
 }
 
 function showInitError(reason, detail) {
   const messages = {
-    expired: 'Link QR da het han.<br>Vui long yeu cau ma QR moi tu nhan vien.',
-    taken: 'Ma QR nay dang duoc su dung tren thiet bi khac.<br>Vui long lien he nhan vien.',
-    not_found: 'Link QR khong hop le.<br>Vui long quet lai ma QR.',
-    missing_key: 'Link QR thieu thong tin.<br>Vui long quet lai ma QR.',
-    access_blocked: detail || 'Khong the mo phien goi mon.<br>Vui long lien he nhan vien.',
+    expired: 'Link QR đã hết hạn.<br>Vui lòng yêu cầu mã QR mới từ nhân viên.',
+    taken: 'Mã QR này đang được sử dụng trên thiết bị khác.<br>Vui lòng liên hệ nhân viên.',
+    not_found: 'Link QR không hợp lệ.<br>Vui lòng quét lại mã QR.',
+    missing_key: 'Link QR thiếu thông tin.<br>Vui lòng quét lại mã QR.',
+    access_blocked: detail || 'Không thể mở phiên gọi món.<br>Vui lòng liên hệ nhân viên.',
   };
   const text = messages[reason] || messages.not_found;
   const loadingContent = document.querySelector('.loading-content');
@@ -1134,10 +1134,10 @@ function showSessionEnded(reason) {
   }
 
   const messages = {
-    expired: { title: 'Phien da ket thuc', desc: 'Thoi gian su dung ban da het. Cam on quy khach da den Aurora!' },
-    taken: { title: 'Phien bi thay the', desc: 'Phien moi vua duoc mo tren thiet bi khac. Vui long quet lai QR de tiep tuc.' },
-    not_found: { title: 'Phien khong hop le', desc: 'Phien goi mon da dong. Vui long lien he nhan vien neu can ho tro.' },
-    network_error: { title: 'Mat ket noi', desc: 'Khong the xac minh phien sau nhieu lan thu. Vui long kiem tra wifi va tai lai trang.' },
+    expired: { title: 'Phiên đã kết thúc', desc: 'Thời gian sử dụng bàn đã hết. Cảm ơn quý khách đã đến Aurora!' },
+    taken: { title: 'Phiên bị thay thế', desc: 'Phiên mới vừa được mở trên thiết bị khác. Vui lòng quét lại QR để tiếp tục.' },
+    not_found: { title: 'Phiên không hợp lệ', desc: 'Phiên gọi món đã đóng. Vui lòng liên hệ nhân viên nếu cần hỗ trợ.' },
+    network_error: { title: 'Mất kết nối', desc: 'Không thể xác minh phiên sau nhiều lần thử. Vui lòng kiểm tra wifi và tải lại trang.' },
   };
   const msg = messages[reason] || messages.not_found;
 
@@ -1200,18 +1200,18 @@ function updatePaymentMethodUI() {
   if (!submitBtn || !note || !qrSection) return;
 
   if (state.paymentMethod === 'sepay') {
-    submitBtn.textContent = 'Tao ma SePay';
+    submitBtn.textContent = 'Tạo mã SePay';
     note.textContent = 'Khach co the chuyen khoan truc tiep bang SePay va he thong se tu cap nhat trang thai.';
     qrSection.classList.remove('hidden');
     if (statusText && !statusText.textContent) {
-      statusText.textContent = 'Dang cho tao ma...';
+      statusText.textContent = 'Đang chờ tạo mã...';
     }
     if (qrContent && !qrContent.textContent) {
-      qrContent.textContent = 'Chua co ma';
+      qrContent.textContent = 'Chưa có mã';
     }
   } else {
-    submitBtn.textContent = 'Gui yeu cau thanh toan';
-    note.textContent = 'Yeu cau thanh toan se duoc gui den thu ngan. Nhan vien se den ban de ho tro thanh toan.';
+    submitBtn.textContent = 'Gửi yêu cầu thanh toán';
+    note.textContent = 'Yêu cầu thanh toán sẽ được gửi đến thu ngân. Nhân viên sẽ đến bàn để hỗ trợ thanh toán.';
     qrSection.classList.add('hidden');
   }
 }
@@ -1225,7 +1225,7 @@ function renderSepayQrContent(result) {
   const payUrl = (result?.pay_url || '').trim();
 
   if (!qrImageUrl && !rawQrText) {
-    qrContentEl.textContent = 'Da tao ma thanh toan. Vui long thu lai sau.';
+    qrContentEl.textContent = 'Đã tạo mã thanh toán. Vui lòng thử lại sau.';
     return;
   }
 
@@ -1235,7 +1235,7 @@ function renderSepayQrContent(result) {
 
   qrContentEl.innerHTML = `
     ${qrImageUrl ? `<img class="sepay-qr-image" src="${safeImage}" alt="SePay QR" onerror="this.remove()">` : ''}
-    ${payUrl ? `<a class="sepay-pay-link" href="${safePay}" target="_blank" rel="noopener noreferrer">Mo link thanh toan</a>` : ''}
+    ${payUrl ? `<a class="sepay-pay-link" href="${safePay}" target="_blank" rel="noopener noreferrer">Mở link thanh toán</a>` : ''}
     ${rawQrText ? `<div class="sepay-qr-raw">${safeRaw}</div>` : ''}
   `;
 }
@@ -1259,9 +1259,9 @@ async function submitPaymentRequest() {
     });
     closePaymentModal();
     await refreshOrders();
-    showToast('Da gui yeu cau thanh toan');
+    showToast('Đã gửi yêu cầu thanh toán');
   } catch (error) {
-    showToast(error.message || 'Khong the gui yeu cau thanh toan', 'error');
+    showToast(error.message || 'Không thể gửi yêu cầu thanh toán', 'error');
   }
 }
 
@@ -1270,7 +1270,7 @@ async function submitSepayPayment(orderId) {
   const totalAmount = state.summary?.total_amount || 0;
 
   try {
-    if (statusText) statusText.textContent = 'Dang tao ma SePay...';
+    if (statusText) statusText.textContent = 'Đang tạo mã SePay...';
     const result = await fetchJson('/api/payments/sepay/create', {
       method: 'POST',
       body: JSON.stringify({
@@ -1285,7 +1285,7 @@ async function submitSepayPayment(orderId) {
     renderSepayQrContent(result);
 
     if (statusText) {
-      statusText.textContent = `Ma da tao - trang thai: ${result.status || 'PENDING'}`;
+      statusText.textContent = `Mã đã tạo - trạng thái: ${result.status || 'PENDING'}`;
     }
 
     if (state.sepayPollingTimer) {
@@ -1305,19 +1305,19 @@ async function submitSepayPayment(orderId) {
           state.sepayPollingTimer = null;
           closePaymentModal();
           await refreshOrders();
-          showToast('Thanh toan SePay thanh cong', 'success');
+          showToast('Thanh toán SePay thành công', 'success');
         } else if (status === 'FAILED' || status === 'EXPIRED') {
           clearInterval(state.sepayPollingTimer);
           state.sepayPollingTimer = null;
-          showToast(`Thanh toan SePay ${status === 'FAILED' ? 'that bai' : 'het han'}`, 'error');
+          showToast(`Thanh toán SePay ${status === 'FAILED' ? 'thất bại' : 'hết hạn'}`, 'error');
         }
       } catch (err) {
         console.error('SePay status polling error', err);
       }
     }, 3000);
   } catch (error) {
-    if (statusText) statusText.textContent = 'Khong the tao ma SePay';
-    showToast(error.message || 'Khong the tao thanh toan SePay', 'error');
+    if (statusText) statusText.textContent = 'Không thể tạo mã SePay';
+    showToast(error.message || 'Không thể tạo thanh toán SePay', 'error');
   }
 }
 function bindUiEvents() {
