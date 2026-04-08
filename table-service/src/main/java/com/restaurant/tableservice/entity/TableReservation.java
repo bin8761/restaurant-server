@@ -46,6 +46,12 @@ public class TableReservation {
     @Column(name = "buffet_package_name", length = 255)
     private String buffetPackageName;
 
+    @Column(name = "num_adults")
+    private Integer numAdults;
+
+    @Column(name = "num_children")
+    private Integer numChildren;
+
     @Column(name = "notes", length = 500)
     private String notes;
 

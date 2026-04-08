@@ -15,6 +15,7 @@ public class FoodCreateUpdateDto {
     
     private String image_url;
     private Integer category_id;
+    private Boolean is_buffet_eligible;
     private List<IngredientInputDto> ingredients;
     
     @Data

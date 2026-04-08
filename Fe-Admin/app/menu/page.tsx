@@ -12,10 +12,11 @@ import {
     ChefHat,
     Tag,
     Package,
+    Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/axios";
-import { getUser } from "@/lib/auth";
+import { getUser, isAdminUser } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
     Select,
@@ -57,6 +59,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 
 // Types
 interface Ingredient {
@@ -73,7 +76,19 @@ interface Food {
     image_url: string;
     category_id: number;
     category_name: string;
+    is_buffet_eligible: boolean;
     ingredients?: Ingredient[];
+}
+
+interface BuffetPackage {
+    id: number;
+    name: string;
+    price: number;
+    price_child: number;
+    duration_minutes: number;
+    description: string;
+    food_ids?: number[];
+    foods?: Food[];
 }
 
 interface Category {
@@ -139,6 +154,13 @@ export default function MenuManagementPage() {
     // Selected items
     const [selectedFood, setSelectedFood] = useState<Food | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+    const [selectedBuffetPackage, setSelectedBuffetPackage] = useState<BuffetPackage | null>(null);
+
+    // Buffet Package states
+    const [buffetPackages, setBuffetPackages] = useState<BuffetPackage[]>([]);
+    const [isCreatePackageDialogOpen, setIsCreatePackageDialogOpen] = useState(false);
+    const [isEditPackageDialogOpen, setIsEditPackageDialogOpen] = useState(false);
+    const [isDeletePackageDialogOpen, setIsDeletePackageDialogOpen] = useState(false);
 
     // Form states
     const [formLoading, setFormLoading] = useState(false);
@@ -147,9 +169,18 @@ export default function MenuManagementPage() {
         price: 0,
         image_url: "",
         category_id: 0,
+        is_buffet_eligible: true,
     });
     const [categoryForm, setCategoryForm] = useState({
         name: "",
+    });
+    const [packageForm, setPackageForm] = useState({
+        name: "",
+        price: 0,
+        price_child: 0,
+        duration_minutes: 120,
+        description: "",
+        food_ids: [] as number[],
     });
 
     // Fetch data
@@ -158,13 +189,15 @@ export default function MenuManagementPage() {
             setLoading(true);
             setError(null);
 
-            const [foodsRes, categoriesRes] = await Promise.all([
+            const [foodsRes, categoriesRes, packagesRes] = await Promise.all([
                 api.get("/menu/foods"),
                 api.get("/menu/categories"),
+                api.get("/menu/buffet-packages"),
             ]);
 
             setFoods(foodsRes.data || []);
             setCategories(categoriesRes.data || []);
+            setBuffetPackages(packagesRes.data || []);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Không thể tải dữ liệu";
             setError(errorMessage);
@@ -176,8 +209,7 @@ export default function MenuManagementPage() {
 
     useEffect(() => {
         // Check if user is admin
-        const user = getUser();
-        setIsAdmin(user?.roleName === 'ADMIN');
+        setIsAdmin(isAdminUser());
         
         fetchData();
     }, [fetchData]);
@@ -211,6 +243,7 @@ export default function MenuManagementPage() {
                 price: foodForm.price,
                 image_url: foodForm.image_url || null,
                 category_id: foodForm.category_id,
+                is_buffet_eligible: foodForm.is_buffet_eligible,
             });
             toast.success("Tạo món ăn thành công");
             setIsCreateFoodDialogOpen(false);
@@ -238,6 +271,7 @@ export default function MenuManagementPage() {
                 price: foodForm.price,
                 image_url: foodForm.image_url || null,
                 category_id: foodForm.category_id,
+                is_buffet_eligible: foodForm.is_buffet_eligible,
             });
             toast.success("Cập nhật món ăn thành công");
             setIsEditFoodDialogOpen(false);
@@ -339,6 +373,58 @@ export default function MenuManagementPage() {
         }
     };
 
+    // CRUD operations for Buffet Packages
+    const handleCreatePackage = async () => {
+        if (!packageForm.name.trim()) {
+            toast.error("Vui lòng nhập tên gói");
+            return;
+        }
+        setFormLoading(true);
+        try {
+            await api.post("/menu/buffet-packages", packageForm);
+            toast.success("Tạo gói buffet thành công");
+            setIsCreatePackageDialogOpen(false);
+            resetPackageForm();
+            await fetchData();
+        } catch (err) {
+            toast.error("Lỗi khi tạo gói buffet");
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
+    const handleUpdatePackage = async () => {
+        if (!selectedBuffetPackage || !packageForm.name.trim()) return;
+        setFormLoading(true);
+        try {
+            await api.put(`/menu/buffet-packages/${selectedBuffetPackage.id}`, packageForm);
+            toast.success("Cập nhật thành công");
+            setIsEditPackageDialogOpen(false);
+            resetPackageForm();
+            await fetchData();
+        } catch (err) {
+            toast.error("Lỗi khi cập nhật");
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
+    const handleDeletePackage = async () => {
+        if (!selectedBuffetPackage) return;
+        setFormLoading(true);
+        try {
+            await api.delete(`/menu/buffet-packages/${selectedBuffetPackage.id}`);
+            toast.success("Xóa thành công");
+            setIsDeletePackageDialogOpen(false);
+            setSelectedBuffetPackage(null);
+            await fetchData();
+        } catch (err) {
+            toast.error("Lỗi khi xóa");
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
     // Form helpers
     const resetFoodForm = () => {
         setFoodForm({
@@ -346,6 +432,7 @@ export default function MenuManagementPage() {
             price: 0,
             image_url: "",
             category_id: 0,
+            is_buffet_eligible: true,
         });
         setSelectedFood(null);
     };
@@ -355,6 +442,18 @@ export default function MenuManagementPage() {
         setSelectedCategory(null);
     };
 
+    const resetPackageForm = () => {
+        setPackageForm({
+            name: "",
+            price: 0,
+            price_child: 0,
+            duration_minutes: 120,
+            description: "",
+            food_ids: [],
+        });
+        setSelectedBuffetPackage(null);
+    };
+
     const openEditFoodDialog = (food: Food) => {
         setSelectedFood(food);
         setFoodForm({
@@ -362,6 +461,7 @@ export default function MenuManagementPage() {
             price: food.price,
             image_url: food.image_url || "",
             category_id: food.category_id,
+            is_buffet_eligible: food.is_buffet_eligible ?? true,
         });
         setIsEditFoodDialogOpen(true);
     };
@@ -380,6 +480,24 @@ export default function MenuManagementPage() {
     const openDeleteCategoryDialog = (category: Category) => {
         setSelectedCategory(category);
         setIsDeleteCategoryDialogOpen(true);
+    };
+
+    const openEditPackageDialog = (pkg: BuffetPackage) => {
+        setSelectedBuffetPackage(pkg);
+        setPackageForm({
+            name: pkg.name,
+            price: pkg.price,
+            price_child: pkg.price_child,
+            duration_minutes: pkg.duration_minutes,
+            description: pkg.description || "",
+            food_ids: pkg.food_ids || [],
+        });
+        setIsEditPackageDialogOpen(true);
+    };
+
+    const openDeletePackageDialog = (pkg: BuffetPackage) => {
+        setSelectedBuffetPackage(pkg);
+        setIsDeletePackageDialogOpen(true);
     };
 
     // Loading state
@@ -410,6 +528,10 @@ export default function MenuManagementPage() {
                     <TabsTrigger value="categories" className="gap-2">
                         <Tag className="h-4 w-4" />
                         Danh mục
+                    </TabsTrigger>
+                    <TabsTrigger value="buffet-packages" className="gap-2">
+                        <Timer className="h-4 w-4" />
+                        Gói Buffet
                     </TabsTrigger>
                 </TabsList>
 
@@ -465,7 +587,7 @@ export default function MenuManagementPage() {
                                             <Input
                                                 id="food-name"
                                                 placeholder="VD: Phở Bò, Cơm tấm..."
-                                                value={foodForm.name}
+                                                value={foodForm.name || ""}
                                                 onChange={(e) => setFoodForm({ ...foodForm, name: e.target.value })}
                                             />
                                         </div>
@@ -504,8 +626,16 @@ export default function MenuManagementPage() {
                                             <Input
                                                 id="food-image"
                                                 placeholder="https://example.com/image.jpg"
-                                                value={foodForm.image_url}
+                                                value={foodForm.image_url || ""}
                                                 onChange={(e) => setFoodForm({ ...foodForm, image_url: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="food-buffet">Cho phép gọi món Buffet</Label>
+                                            <Switch
+                                                id="food-buffet"
+                                                checked={foodForm.is_buffet_eligible}
+                                                onCheckedChange={(checked) => setFoodForm({ ...foodForm, is_buffet_eligible: checked })}
                                             />
                                         </div>
                                     </div>
@@ -584,6 +714,11 @@ export default function MenuManagementPage() {
                                             </Button>
                                         </div>
                                         )}
+                                        {food.is_buffet_eligible && (
+                                            <Badge className="absolute top-2 right-2 bg-purple-600/90 text-white border-0 text-[10px] h-5">
+                                                BUFFET
+                                            </Badge>
+                                        )}
                                     </div>
                                     <CardContent className="p-4 flex flex-col justify-between h-full">                                        <h3 className="font-semibold text-foreground line-clamp-2 min-h-[48px] mb-2">{food.name}</h3>
                                         <div className="flex items-center justify-between mt-auto">
@@ -627,7 +762,7 @@ export default function MenuManagementPage() {
                                         <Input
                                             id="category-name"
                                             placeholder="VD: Món Chính, Tráng miệng..."
-                                            value={categoryForm.name}
+                                            value={categoryForm.name || ""}
                                             onChange={(e) => setCategoryForm({ name: e.target.value })}
                                         />
                                     </div>
@@ -703,7 +838,6 @@ export default function MenuManagementPage() {
                         </Card>
                     )}
                 </TabsContent>
-            </Tabs>
 
             {/* Edit Food Dialog */}
             <Dialog open={isEditFoodDialogOpen} onOpenChange={setIsEditFoodDialogOpen}>
@@ -717,7 +851,7 @@ export default function MenuManagementPage() {
                             <Label htmlFor="edit-food-name">Tên món ăn</Label>
                             <Input
                                 id="edit-food-name"
-                                value={foodForm.name}
+                                value={foodForm.name || ""}
                                 onChange={(e) => setFoodForm({ ...foodForm, name: e.target.value })}
                             />
                         </div>
@@ -754,8 +888,16 @@ export default function MenuManagementPage() {
                             <Label htmlFor="edit-food-image">Link hình ảnh</Label>
                             <Input
                                 id="edit-food-image"
-                                value={foodForm.image_url}
+                                value={foodForm.image_url || ""}
                                 onChange={(e) => setFoodForm({ ...foodForm, image_url: e.target.value })}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="edit-food-buffet">Cho phép gọi món Buffet</Label>
+                            <Switch
+                                id="edit-food-buffet"
+                                checked={foodForm.is_buffet_eligible}
+                                onCheckedChange={(checked) => setFoodForm({ ...foodForm, is_buffet_eligible: checked })}
                             />
                         </div>
                     </div>
@@ -804,7 +946,7 @@ export default function MenuManagementPage() {
                             <Label htmlFor="edit-category-name">Tên danh mục</Label>
                             <Input
                                 id="edit-category-name"
-                                value={categoryForm.name}
+                                value={categoryForm.name || ""}
                                 onChange={(e) => setCategoryForm({ name: e.target.value })}
                             />
                         </div>
@@ -838,6 +980,204 @@ export default function MenuManagementPage() {
                         >
                             {formLoading ? "Đang xóa..." : "Xóa"}
                         </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+                {/* Buffet Packages Tab */}
+                <TabsContent value="buffet-packages" className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                            Quản lý các gói Buffet (Giá người lớn, trẻ em và thời gian hiệu lực)
+                        </p>
+                        {isAdmin && (
+                            <Dialog open={isCreatePackageDialogOpen} onOpenChange={setIsCreatePackageDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button onClick={resetPackageForm} className="bg-purple-600 hover:bg-purple-700 text-white">
+                                        <Plus className="h-4 w-4" />
+                                        Thêm gói Buffet
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Thêm gói Buffet mới</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid grid-cols-2 gap-4 py-4">
+                                        <div className="col-span-2 space-y-2">
+                                            <Label>Tên gói</Label>
+                                            <Input value={packageForm.name || ""} onChange={(e) => setPackageForm({...packageForm, name: e.target.value})} placeholder="VD: Buffet Nướng 299k" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Giá Người lớn</Label>
+                                            <Input type="number" value={packageForm.price || ""} onChange={(e) => setPackageForm({...packageForm, price: parseFloat(e.target.value) || 0})} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Giá Trẻ em</Label>
+                                            <Input type="number" value={packageForm.price_child || ""} onChange={(e) => setPackageForm({...packageForm, price_child: parseFloat(e.target.value) || 0})} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Thời lượng (phút)</Label>
+                                            <Input type="number" value={packageForm.duration_minutes || ""} onChange={(e) => setPackageForm({...packageForm, duration_minutes: parseInt(e.target.value) || 0})} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <Label>Mô tả</Label>
+                                            <Textarea value={packageForm.description || ""} onChange={(e) => setPackageForm({...packageForm, description: e.target.value})} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2 pt-2 border-t">
+                                            <Label className="text-purple-700 font-bold">Danh sách món ăn bao gồm ({packageForm.food_ids?.length || 0})</Label>
+                                            <div className="border rounded-md p-3 max-h-[180px] overflow-y-auto grid grid-cols-2 gap-2 bg-slate-50/50">
+                                                {foods.filter(f => f.is_buffet_eligible).length === 0 ? (
+                                                    <p className="col-span-2 text-center py-4 text-xs text-muted-foreground">Chưa có món ăn nào được đánh dấu là "Buffet Eligible"</p>
+                                                ) : (
+                                                    foods.filter(f => f.is_buffet_eligible).map(food => (
+                                                        <div key={food.id} className="flex items-center space-x-2 p-1 hover:bg-white rounded transition-colors border border-transparent hover:border-slate-100">
+                                                            <Switch 
+                                                                id={`food-pkg-${food.id}`}
+                                                                checked={packageForm.food_ids?.includes(food.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    const newIds = checked 
+                                                                        ? [...(packageForm.food_ids || []), food.id]
+                                                                        : (packageForm.food_ids || []).filter(id => id !== food.id);
+                                                                    setPackageForm({ ...packageForm, food_ids: newIds });
+                                                                }}
+                                                            />
+                                                            <div className="flex flex-col">
+                                                                <Label htmlFor={`food-pkg-${food.id}`} className="text-[11px] font-medium leading-none cursor-pointer">
+                                                                    {food.name}
+                                                                </Label>
+                                                                <span className="text-[10px] text-muted-foreground">{formatCurrency(food.price)}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                            <p className="text-[9px] text-muted-foreground italic">
+                                                * Chỉ hiển thị các món có đánh dấu "Cho phép gọi món Buffet" trong phần quản lý món ăn.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button variant="outline" onClick={() => setIsCreatePackageDialogOpen(false)}>Hủy</Button>
+                                        <Button onClick={handleCreatePackage} disabled={formLoading} className="bg-purple-600 hover:bg-purple-700">Tạo mới</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {buffetPackages.map((pkg) => (
+                            <Card key={pkg.id} className="relative border-l-4 border-l-purple-600">
+                                <CardContent className="p-6">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold">{pkg.name}</h3>
+                                            <p className="text-sm text-muted-foreground">{pkg.duration_minutes} phút</p>
+                                        </div>
+                                        {isAdmin && (
+                                            <div className="flex gap-1">
+                                                <Button variant="ghost" size="icon" onClick={() => openEditPackageDialog(pkg)}><Pencil className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => openDeletePackageDialog(pkg)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span>Người lớn:</span>
+                                            <span className="font-bold text-primary">{formatCurrency(pkg.price)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span>Trẻ em:</span>
+                                            <span className="font-bold text-blue-600">{formatCurrency(pkg.price_child)}</span>
+                                        </div>
+                                    </div>
+                                    {pkg.description && (
+                                        <p className="mt-4 text-xs text-muted-foreground line-clamp-2 italic border-t pt-2">
+                                            {pkg.description}
+                                        </p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </TabsContent>
+            </Tabs>
+
+            {/* Edit Package Dialog */}
+            <Dialog open={isEditPackageDialogOpen} onOpenChange={setIsEditPackageDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader><DialogTitle>Sửa gói {selectedBuffetPackage?.name}</DialogTitle></DialogHeader>
+                    <div className="grid grid-cols-2 gap-4 py-4">
+                        <div className="col-span-2 space-y-2">
+                            <Label>Tên gói</Label>
+                            <Input value={packageForm.name || ""} onChange={(e) => setPackageForm({...packageForm, name: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Giá Người lớn</Label>
+                            <Input type="number" value={packageForm.price || ""} onChange={(e) => setPackageForm({...packageForm, price: parseFloat(e.target.value) || 0})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Giá Trẻ em</Label>
+                            <Input type="number" value={packageForm.price_child || ""} onChange={(e) => setPackageForm({...packageForm, price_child: parseFloat(e.target.value) || 0})} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Thời lượng (phút)</Label>
+                            <Input type="number" value={packageForm.duration_minutes || ""} onChange={(e) => setPackageForm({...packageForm, duration_minutes: parseInt(e.target.value) || 0})} />
+                        </div>
+                        <div className="col-span-2 space-y-2">
+                            <Label>Mô tả</Label>
+                            <Textarea value={packageForm.description || ""} onChange={(e) => setPackageForm({...packageForm, description: e.target.value})} />
+                        </div>
+                        <div className="col-span-2 space-y-2 pt-2 border-t">
+                            <Label className="text-purple-700 font-bold">Danh sách món ăn bao gồm ({packageForm.food_ids?.length || 0})</Label>
+                            <div className="border rounded-md p-3 max-h-[180px] overflow-y-auto grid grid-cols-2 gap-2 bg-slate-50/50">
+                                {foods.filter(f => f.is_buffet_eligible).length === 0 ? (
+                                    <p className="col-span-2 text-center py-4 text-xs text-muted-foreground">Chưa có món ăn nào được đánh dấu là "Buffet Eligible"</p>
+                                ) : (
+                                    foods.filter(f => f.is_buffet_eligible).map(food => (
+                                        <div key={food.id} className="flex items-center space-x-2 p-1 hover:bg-white rounded transition-colors border border-transparent hover:border-slate-100">
+                                            <Switch 
+                                                id={`edit-food-pkg-${food.id}`}
+                                                checked={packageForm.food_ids?.includes(food.id)}
+                                                onCheckedChange={(checked) => {
+                                                    const newIds = checked 
+                                                        ? [...(packageForm.food_ids || []), food.id]
+                                                        : (packageForm.food_ids || []).filter(id => id !== food.id);
+                                                    setPackageForm({ ...packageForm, food_ids: newIds });
+                                                }}
+                                            />
+                                            <div className="flex flex-col">
+                                                <Label htmlFor={`edit-food-pkg-${food.id}`} className="text-[11px] font-medium leading-none cursor-pointer">
+                                                    {food.name}
+                                                </Label>
+                                                <span className="text-[10px] text-muted-foreground">{formatCurrency(food.price)}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <p className="text-[9px] text-muted-foreground italic">
+                                * Chỉ hiển thị các món có đánh dấu "Cho phép gọi món Buffet" trong phần quản lý món ăn.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditPackageDialogOpen(false)}>Hủy</Button>
+                        <Button onClick={handleUpdatePackage} disabled={formLoading} className="bg-purple-600 hover:bg-purple-700">Lưu thay đổi</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Package AlertDialog */}
+            <AlertDialog open={isDeletePackageDialogOpen} onOpenChange={setIsDeletePackageDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Xác nhận xóa gói Buffet?</AlertDialogTitle>
+                        <AlertDialogDescription>Xóa gói &quot;{selectedBuffetPackage?.name}&quot; sẽ không thể hoàn tác.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeletePackage} disabled={formLoading} className="bg-destructive text-white">Xóa</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

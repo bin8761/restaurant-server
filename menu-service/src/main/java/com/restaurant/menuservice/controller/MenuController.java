@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import org.springframework.lang.NonNull;
 import com.restaurant.menuservice.entity.BuffetPackage;
+import com.restaurant.menuservice.dto.BuffetPackageDto;
 
 @RestController
 @RequestMapping("/api/menu")
@@ -51,8 +52,29 @@ public class MenuController {
     }
 
     @GetMapping("/buffet-packages")
-    public ResponseEntity<List<BuffetPackage>> getBuffetPackages() {
+    public ResponseEntity<List<BuffetPackageDto>> getBuffetPackages() {
         return ResponseEntity.ok(menuService.getBuffetPackages());
+    }
+
+    @GetMapping("/buffet-packages/{id}")
+    public ResponseEntity<BuffetPackageDto> getBuffetPackageById(@PathVariable @NonNull Integer id) {
+        return ResponseEntity.ok(menuService.getBuffetPackageById(id));
+    }
+
+    @PostMapping("/buffet-packages")
+    public ResponseEntity<BuffetPackageDto> createBuffetPackage(@RequestBody BuffetPackageDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(menuService.createBuffetPackage(dto));
+    }
+
+    @PutMapping("/buffet-packages/{id}")
+    public ResponseEntity<BuffetPackageDto> updateBuffetPackage(@PathVariable @NonNull Integer id, @RequestBody BuffetPackageDto dto) {
+        return ResponseEntity.ok(menuService.updateBuffetPackage(id, dto));
+    }
+
+    @DeleteMapping("/buffet-packages/{id}")
+    public ResponseEntity<Void> deleteBuffetPackage(@PathVariable @NonNull Integer id) {
+        menuService.deleteBuffetPackage(id);
+        return ResponseEntity.ok().build();
     }
 
     // Foods
@@ -64,6 +86,11 @@ public class MenuController {
     @GetMapping("/foods/{id}")
     public ResponseEntity<FoodDto> getFoodById(@PathVariable @NonNull Integer id) {
         return ResponseEntity.ok(menuService.getFoodById(id));
+    }
+
+    @GetMapping("/foods/details")
+    public ResponseEntity<List<FoodDto>> getFoodDetails(@RequestParam List<Integer> ids) {
+        return ResponseEntity.ok(menuService.getFoodDetails(ids));
     }
 
     @PostMapping("/foods")

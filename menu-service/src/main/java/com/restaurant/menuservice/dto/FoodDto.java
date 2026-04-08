@@ -12,5 +12,6 @@ public class FoodDto {
     private String imageUrl;
     private Integer categoryId;
     private String categoryName;
+    private Boolean isBuffetEligible;
     private List<IngredientDto> ingredients;
 }

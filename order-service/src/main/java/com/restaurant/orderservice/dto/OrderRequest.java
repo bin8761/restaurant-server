@@ -16,5 +16,7 @@ public class OrderRequest {
     private String buffet_session_id;
     private Integer buffet_package_id;
     private String buffet_package_name;
+    private Integer num_adults;
+    private Integer num_children;
     private List<OrderItemDto> items;
 }

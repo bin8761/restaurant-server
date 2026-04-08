@@ -2,6 +2,7 @@ package com.restaurant.orderservice.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
@@ -20,4 +21,10 @@ public interface MenuClient {
     /** BUG-030: Lấy danh sách nguyên liệu cần dùng theo từng foodId. */
     @GetMapping("/api/foods/ingredients")
     Map<Integer, List<Map<String, Object>>> getFoodIngredients(@RequestParam("foodIds") List<Integer> foodIds);
+
+    @GetMapping("/api/menu/foods/details")
+    List<Map<String, Object>> getFoodDetails(@RequestParam("ids") List<Integer> ids);
+
+    @GetMapping("/api/menu/buffet-packages/{id}")
+    Map<String, Object> getBuffetPackageById(@PathVariable("id") Integer id);
 }

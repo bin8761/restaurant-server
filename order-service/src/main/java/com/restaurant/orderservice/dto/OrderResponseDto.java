@@ -22,6 +22,9 @@ public class OrderResponseDto {
     private String buffet_session_id;
     private Integer buffet_package_id;
     private String buffet_package_name;
+    private Integer num_adults;
+    private Integer num_children;
+    private LocalDateTime buffet_expiry_time;
     private String payment_status;
     private LocalDateTime updated_at;
     private List<OrderDetailResponseDto> details;
