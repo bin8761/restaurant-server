@@ -45,18 +45,6 @@ public class OrderService {
     private final InventoryClient inventoryClient;
     private final SocketService socketService;
 
-    private boolean hasItems(OrderRequest request) {
-        return request.getItems() != null && !request.getItems().isEmpty();
-    }
-
-    private boolean isBuffetActivationOrder(OrderRequest request) {
-        return Boolean.TRUE.equals(request.getIs_buffet()) && !hasItems(request);
-    }
-
-    private boolean isBuffetFoodOrder(OrderRequest request) {
-        return Boolean.TRUE.equals(request.getIs_buffet()) && hasItems(request);
-    }
-
     private void enrichFoodNames(List<Order> orders) {
         List<Integer> foodIds = orders.stream()
                 .flatMap(order -> order.getDetails().stream())
