@@ -49,6 +49,15 @@ public class Order {
     @Column(name = "buffet_package_name", length = 255)
     private String buffetPackageName;
 
+    @Column(name = "num_adults")
+    private Integer numAdults;
+
+    @Column(name = "num_children")
+    private Integer numChildren;
+
+    @Column(name = "buffet_expiry_time")
+    private LocalDateTime buffetExpiryTime;
+
     @Column(name = "payment_status", length = 50)
     private String paymentStatus;
 

@@ -181,6 +181,15 @@ public class TableController {
         tableService.invalidateTableKey(id);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/{id}/reservation/guest-counts")
+    public ResponseEntity<Void> updateReservationGuestCounts(
+            @PathVariable @NonNull Integer id,
+            @RequestParam Integer numAdults,
+            @RequestParam Integer numChildren) {
+        tableService.updateActiveReservationGuestCounts(id, numAdults, numChildren);
+        return ResponseEntity.ok().build();
+    }
 }
 
 

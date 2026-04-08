@@ -1,6 +1,7 @@
 package com.restaurant.menuservice.service;
 
 import com.restaurant.menuservice.client.InventoryClient;
+import com.restaurant.menuservice.dto.BuffetPackageDto;
 import com.restaurant.menuservice.dto.FoodCreateUpdateDto;
 import com.restaurant.menuservice.dto.FoodDto;
 import com.restaurant.menuservice.dto.IngredientDto;
@@ -17,7 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.annotation.PostConstruct;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,8 +66,38 @@ public class MenuService {
         categoryRepository.deleteById(id);
     }
 
-    public List<BuffetPackage> getBuffetPackages() {
-        return buffetPackageRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<BuffetPackageDto> getBuffetPackages() {
+        return buffetPackageRepository.findAll().stream()
+                .map(this::mapPackageToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public BuffetPackageDto getBuffetPackageById(@NonNull Integer id) {
+        BuffetPackage pkg = buffetPackageRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay goi buffet"));
+        return mapPackageToDto(pkg);
+    }
+
+    @Transactional
+    public BuffetPackageDto createBuffetPackage(BuffetPackageDto dto) {
+        BuffetPackage buffetPackage = new BuffetPackage();
+        mapDtoToPackage(dto, buffetPackage);
+        return mapPackageToDto(buffetPackageRepository.save(buffetPackage));
+    }
+
+    @Transactional
+    public BuffetPackageDto updateBuffetPackage(@NonNull Integer id, BuffetPackageDto dto) {
+        BuffetPackage existing = buffetPackageRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Khong tim thay goi buffet"));
+        mapDtoToPackage(dto, existing);
+        return mapPackageToDto(buffetPackageRepository.save(existing));
+    }
+
+    @Transactional
+    public void deleteBuffetPackage(@NonNull Integer id) {
+        buffetPackageRepository.deleteById(id);
     }
 
     public List<FoodDto> getFoods(Integer categoryId) {
@@ -98,6 +131,12 @@ public class MenuService {
         return mapFoodToDto(food);
     }
 
+    public List<FoodDto> getFoodDetails(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        List<Food> foods = foodRepository.findAllById(ids);
+        return foods.stream().map(this::mapFoodToDto).collect(Collectors.toList());
+    }
+
     @Transactional
     @SuppressWarnings("null")
     public FoodDto createFood(FoodCreateUpdateDto dto) {
@@ -108,6 +147,9 @@ public class MenuService {
 
         if (dto.getCategory_id() != null) {
             food.setCategory(getCategoryById(dto.getCategory_id()));
+        }
+        if (dto.getIs_buffet_eligible() != null) {
+            food.setIsBuffetEligible(dto.getIs_buffet_eligible());
         }
 
         Food savedFood = foodRepository.save(food);
@@ -141,6 +183,9 @@ public class MenuService {
         }
         if (dto.getCategory_id() != null) {
             food.setCategory(getCategoryById(dto.getCategory_id()));
+        }
+        if (dto.getIs_buffet_eligible() != null) {
+            food.setIsBuffetEligible(dto.getIs_buffet_eligible());
         }
 
         foodRepository.save(food);
@@ -184,6 +229,7 @@ public class MenuService {
             dto.setCategoryId(food.getCategory().getId());
             dto.setCategoryName(food.getCategory().getName());
         }
+        dto.setIsBuffetEligible(food.getIsBuffetEligible());
 
         List<IngredientDto> ingredientDtos = new ArrayList<>();
         if (!foodIngredients.isEmpty()) {
@@ -196,6 +242,34 @@ public class MenuService {
         }
         dto.setIngredients(ingredientDtos);
         return dto;
+    }
+
+    private BuffetPackageDto mapPackageToDto(BuffetPackage pkg) {
+        BuffetPackageDto dto = new BuffetPackageDto();
+        dto.setId(pkg.getId());
+        dto.setName(pkg.getName());
+        dto.setPrice(pkg.getPrice());
+        dto.setPrice_child(pkg.getPriceChild());
+        dto.setDuration_minutes(pkg.getDurationMinutes());
+        dto.setDescription(pkg.getDescription());
+        if (pkg.getFoods() != null) {
+            dto.setFood_ids(pkg.getFoods().stream().map(Food::getId).collect(Collectors.toList()));
+            dto.setFoods(pkg.getFoods().stream().map(this::mapFoodToDto).collect(Collectors.toList()));
+        }
+        return dto;
+    }
+
+    private void mapDtoToPackage(BuffetPackageDto dto, BuffetPackage pkg) {
+        if (dto.getName() != null) pkg.setName(dto.getName());
+        if (dto.getPrice() != null) pkg.setPrice(dto.getPrice());
+        if (dto.getPrice_child() != null) pkg.setPriceChild(dto.getPrice_child());
+        if (dto.getDuration_minutes() != null) pkg.setDurationMinutes(dto.getDuration_minutes());
+        if (dto.getDescription() != null) pkg.setDescription(dto.getDescription());
+        
+        if (dto.getFood_ids() != null) {
+            List<Food> foods = foodRepository.findAllById(dto.getFood_ids());
+            pkg.setFoods(foods);
+        }
     }
 
     private String normalizeImageUrl(String rawUrl) {
@@ -258,6 +332,57 @@ public class MenuService {
         } catch (Exception e) {
             log.warn("Failed to call inventory service while mapping foods", e);
             return Map.of();
+        }
+    }
+
+    @PostConstruct
+    public void seedDefaultBuffetData() {
+        try {
+            if (buffetPackageRepository.count() == 0) {
+                log.info("🌱 Seeding default buffet packages...");
+                
+                BuffetPackage classic = new BuffetPackage();
+                classic.setName("Buffet Classic");
+                classic.setPrice(new BigDecimal("299000"));
+                classic.setPriceChild(new BigDecimal("149000"));
+                classic.setDurationMinutes(120);
+                classic.setDescription("Gói Buffet cơ bản với hơn 50 món nướng và lẩu đặc sắc.");
+                buffetPackageRepository.save(classic);
+
+                BuffetPackage premium = new BuffetPackage();
+                premium.setName("Buffet Premium");
+                premium.setPrice(new BigDecimal("499000"));
+                premium.setPriceChild(new BigDecimal("249000"));
+                premium.setDurationMinutes(180);
+                premium.setDescription("Gói Buffet thượng hạng với hải sản tươi sống, bò Wagyu và quầy Line không giới hạn.");
+                buffetPackageRepository.save(premium);
+
+                BuffetPackage lunch = new BuffetPackage();
+                lunch.setName("Buffet Lunch (T2-T6)");
+                lunch.setPrice(new BigDecimal("199000"));
+                lunch.setPriceChild(new BigDecimal("99000"));
+                lunch.setDurationMinutes(90);
+                lunch.setDescription("Gói Buffet trưa tiết kiệm dành cho dân văn phòng và sinh viên.");
+                buffetPackageRepository.save(lunch);
+                
+                log.info("✅ Default buffet packages seeded.");
+            }
+
+            // Ensure all foods have a default value for is_buffet_eligible (1/true)
+            List<Food> allFoods = foodRepository.findAll();
+            boolean updated = false;
+            for (Food food : allFoods) {
+                if (food.getIsBuffetEligible() == null) {
+                    food.setIsBuffetEligible(true);
+                    foodRepository.save(food);
+                    updated = true;
+                }
+            }
+            if (updated) {
+                log.info("✅ Existing foods updated with default buffet eligibility.");
+            }
+        } catch (Exception e) {
+            log.error("❌ Error during buffet data seeding: {}", e.getMessage());
         }
     }
 }

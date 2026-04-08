@@ -17,4 +17,10 @@ public interface TableClient {
 
     @PutMapping("/api/tables/{tableId}/keys/invalidate")
     void invalidateTableKey(@PathVariable("tableId") Integer tableId);
+
+    @PutMapping("/api/tables/{tableId}/reservation/guest-counts")
+    void updateReservationGuestCounts(
+            @PathVariable("tableId") Integer tableId,
+            @RequestParam("numAdults") Integer numAdults,
+            @RequestParam("numChildren") Integer numChildren);
 }

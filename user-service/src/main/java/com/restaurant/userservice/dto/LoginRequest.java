@@ -8,12 +8,19 @@ import jakarta.validation.constraints.NotBlank;
 public class LoginRequest {
     /**
      * Chấp nhận email, số điện thoại, hoặc username.
-     * Backward compatible: client cũ gửi JSON field "username" vẫn hoạt động.
+     * Ánh xạ từ "username" hoặc "identifier" của client.
      */
-    @JsonAlias("username")
+    @JsonAlias("identifier")
     @NotBlank(message = "Tên đăng nhập không được để trống")
-    private String identifier;
+    private String username;
 
     @NotBlank(message = "Mật khẩu không được để trống")
     private String password;
+
+    /**
+     * Helper để lấy identifier (username/email/phone) cho AuthService.
+     */
+    public String getIdentifier() {
+        return username;
+    }
 }

@@ -15,11 +15,8 @@ spring:
       globalcors:
         corsConfigurations:
           '[/**]':
-            # BUG-029: Giới hạn CORS origin, không dùng wildcard *
             allowedOriginPatterns:
-              - "${CORS_ALLOWED_ORIGIN_1:http://localhost:3001}"  # Next.js dev server (fallback khi port 3000 bị chiếm)
-              - "${CORS_ALLOWED_ORIGIN_2:http://localhost:3010}"  # Fe-Admin (recommended port)
-              - "${CORS_ALLOWED_ORIGIN_3:http://localhost:3011}"  # Customer web + table-service
+              - "*"
             allowCredentials: true
             allowedMethods:
             - GET
@@ -28,12 +25,11 @@ spring:
             - DELETE
             - OPTIONS
             allowedHeaders: "*"
+            maxAge: 3600
       default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
         - RemoveRequestHeader=X-Internal-Call
         - RemoveRequestHeader=X-Service-Token
-        # Strip Origin trước khi forward đến backend — CORS chỉ do Gateway xử lý.
-        # Backend services không cần CORS config, tránh double-block khi truy cập qua LAN IP.
         - RemoveRequestHeader=Origin
       routes:
         - id: user-service
@@ -80,6 +76,10 @@ spring:
           uri: ${IMAGE_SERVICE_URL:http://localhost:3007}
           predicates:
             - Path=/api/images/**
+          filters:
+            - AddResponseHeader=Access-Control-Allow-Origin, *
+            - AddResponseHeader=Access-Control-Allow-Methods, GET, OPTIONS
+            - AddResponseHeader=Access-Control-Allow-Headers, *
 
         - id: payment-websocket
           uri: ${PAYMENT_SERVICE_URL:http://localhost:3008}

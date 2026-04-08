@@ -27,4 +27,7 @@ public class Food {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    @Column(name = "is_buffet_eligible")
+    private Boolean isBuffetEligible = true;
 }

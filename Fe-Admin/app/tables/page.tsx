@@ -66,6 +66,15 @@ interface ActiveKeyInfo {
 interface TableEnrichment {
   upcoming?: UpcomingReservation;
   activeKey?: ActiveKeyInfo;
+  session?: any;
+}
+
+interface BuffetPackage {
+  id: number;
+  name: string;
+  price: number;
+  price_child: number;
+  duration_minutes: number;
 }
 
 export default function TableManagementPage() {
@@ -86,6 +95,13 @@ export default function TableManagementPage() {
   const [tick, setTick] = useState(0); // cập nhật mỗi giây cho countdown
   const [expandedUpcomingTableId, setExpandedUpcomingTableId] = useState<string | null>(null);
   const [showDialogUpcomingDetail, setShowDialogUpcomingDetail] = useState(false);
+  const [buffetPackages, setBuffetPackages] = useState<BuffetPackage[]>([]);
+  const [isBuffetDialogOpen, setIsBuffetDialogOpen] = useState(false);
+  const [buffetData, setBuffetData] = useState({
+    num_adults: 1,
+    num_children: 0,
+    package_id: "",
+  });
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -100,9 +116,10 @@ export default function TableManagementPage() {
     capacity: 2,
   });
 
-  // Fetch tables on mount
+  // Fetch tables and packages on mount
   useEffect(() => {
     fetchTables();
+    fetchBuffetPackages();
   }, []);
 
   // Countdown tick mỗi giây
@@ -110,6 +127,15 @@ export default function TableManagementPage() {
     const timer = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const fetchBuffetPackages = async () => {
+    try {
+      const response = await api.get('/menu/buffet-packages');
+      setBuffetPackages(response.data || []);
+    } catch (err) {
+      console.error('Error fetching buffet packages:', err);
+    }
+  };
 
   const fetchTables = async () => {
     try {
@@ -131,10 +157,13 @@ export default function TableManagementPage() {
   const fetchEnrichments = async (tableList: Table[]) => {
     const results = await Promise.allSettled(
       tableList.map(async (table) => {
-        const [upcomingRes, activeKeyRes] = await Promise.allSettled([
+        const [upcomingRes, activeKeyRes, sessionRes] = await Promise.allSettled([
           api.get(`/tables/${table.id}/upcoming-reservation`).catch(() => null),
           table.status === 'Đang sử dụng'
             ? api.get(`/tables/${table.id}/active-key`).catch(() => null)
+            : Promise.resolve(null),
+          table.status === 'Đang sử dụng'
+            ? api.get(`/orders/tables/${table.id}/session/summary`).catch(() => null)
             : Promise.resolve(null),
         ]);
         const rawUpcoming =
@@ -159,26 +188,31 @@ export default function TableManagementPage() {
         return {
           tableId: table.id,
           upcoming: normalizeUpcoming(rawUpcoming),
-          activeKey:
-            activeKeyRes.status === 'fulfilled' && activeKeyRes.value?.data
-              ? ({
-                  expiresAt: activeKeyRes.value.data.expires_at,
-                  secondsRemaining: activeKeyRes.value.data.seconds_remaining,
-                } as ActiveKeyInfo)
-              : undefined,
-        };
-      })
-    );
-
-    const map = new Map<string, TableEnrichment>();
-    results.forEach((r) => {
-      if (r.status === 'fulfilled') {
-        map.set(r.value.tableId, {
-          upcoming: r.value.upcoming,
-          activeKey: r.value.activeKey,
-        });
-      }
-    });
+            activeKey:
+              activeKeyRes.status === 'fulfilled' && activeKeyRes.value?.data
+                ? ({
+                    expiresAt: activeKeyRes.value.data.expires_at,
+                    secondsRemaining: activeKeyRes.value.data.seconds_remaining,
+                  } as ActiveKeyInfo)
+                : undefined,
+            session:
+              sessionRes.status === 'fulfilled' && sessionRes.value?.data
+                ? sessionRes.value.data
+                : undefined,
+          };
+        })
+      );
+  
+      const map = new Map<string, TableEnrichment>();
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          map.set(r.value.tableId, {
+            upcoming: r.value.upcoming,
+            activeKey: r.value.activeKey,
+            session: r.value.session,
+          });
+        }
+      });
     setEnrichments(map);
   };
 
@@ -193,7 +227,7 @@ export default function TableManagementPage() {
       await api.post('/tables', {
         name: formData.name,
         status: formData.status,
-        isBuffet: formData.isBuffet,
+        is_buffet: formData.isBuffet,
         capacity: formData.capacity,
       });
       toast.success('Tạo bàn thành công');
@@ -278,6 +312,47 @@ export default function TableManagementPage() {
         err instanceof Error ? err.message : 'Failed to generate QR';
       toast.error(`Lỗi: ${errorMsg}`);
       console.error('Error generating QR:', err);
+    }
+  };
+
+  const handleOpenBuffetDialog = () => {
+    if (!selectedTable) return;
+    setBuffetData({
+      num_adults: 1,
+      num_children: 0,
+      package_id: buffetPackages[0]?.id.toString() || "",
+    });
+    setIsBuffetDialogOpen(true);
+  };
+
+  const handleActivateBuffet = async () => {
+    if (!selectedTable) return;
+    if (!buffetData.package_id) {
+      toast.error("Vui lòng chọn gói Buffet");
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      const selectedPkg = buffetPackages.find(p => p.id.toString() === buffetData.package_id);
+      await api.post('/orders', {
+        table_id: selectedTable.id,
+        is_buffet: true,
+        buffet_package_id: parseInt(buffetData.package_id),
+        buffet_package_name: selectedPkg?.name,
+        num_adults: buffetData.num_adults,
+        num_children: buffetData.num_children,
+        items: [] // Kích hoạt chỉ cần thông tin buffet
+      });
+      toast.success("Kích hoạt Buffet thành công");
+      setIsBuffetDialogOpen(false);
+      setIsDetailDialogOpen(false);
+      await fetchTables();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Không thể kích hoạt Buffet";
+      toast.error(errorMsg);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -512,6 +587,12 @@ export default function TableManagementPage() {
                     {table.capacity && (
                       <p className="text-xs text-muted-foreground">Sức chứa: {table.capacity} người</p>
                     )}
+                    {table.status === 'Đang sử dụng' && enrich?.session && (
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">👨 {enrich.session.num_adults || 0}</span>
+                        <span className="text-[10px] bg-green-100 text-green-800 px-1 rounded">🧒 {enrich.session.num_children || 0}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div>{getStatusBadge(table.status)}</div>
@@ -647,6 +728,7 @@ export default function TableManagementPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-blue-900">Lịch đặt sắp tới</p>
                   {(() => {
+                    if (!selectedTable) return null;
                     const upcoming = enrichments.get(selectedTable.id)?.upcoming;
                     if (!upcoming || !isValidDateString(upcoming.startTime)) return null;
                     return (
@@ -664,6 +746,7 @@ export default function TableManagementPage() {
                 </div>
 
                 {(() => {
+                  if (!selectedTable) return null;
                   const upcoming = enrichments.get(selectedTable.id)?.upcoming;
                   if (!upcoming || !isValidDateString(upcoming.startTime)) {
                     return <p className="text-xs text-blue-700">Chưa có lịch đặt sắp tới cho bàn này.</p>;
@@ -693,45 +776,59 @@ export default function TableManagementPage() {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <Button
-                variant="outline"
-                onClick={() => setIsDetailDialogOpen(false)}
-                className="flex-1"
-              >
-                Đóng
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleGenerateQR}
-                className="flex-1"
-              >
-                <QrCode className="w-4 h-4" />
-                QR code
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleInvalidateKeys}
-                className="flex-1"
-              >
-                Vô hiệu hóa
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteConfirmOpen(true)}
-                className="flex-1"
-              >
-                <Trash2 className="w-4 h-4" />
-                Xóa
-              </Button>
-              <Button
-                onClick={handleUpdateTable}
-                disabled={formLoading}
-                className="flex-1"
-              >
-                {formLoading ? 'Đang lưu...' : 'Lưu'}
-              </Button>
+          <DialogFooter className="sm:justify-start">
+            <div className="flex flex-col gap-3 w-full">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailDialogOpen(false)}
+                  className="flex-1 min-w-[80px]"
+                >
+                  Đóng
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleGenerateQR}
+                  className="flex-1 min-w-[100px]"
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  QR code
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleInvalidateKeys}
+                  className="flex-1 min-w-[120px]"
+                >
+                  Vô hiệu hóa
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="flex-1 min-w-[80px] text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Xóa
+                </Button>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleUpdateTable}
+                  disabled={formLoading}
+                  className="flex-1"
+                >
+                  {formLoading ? 'Đang lưu...' : 'Lưu'}
+                </Button>
+                {selectedTable && selectedTable.is_buffet && selectedTable.status === 'Trống' && (
+                  <Button
+                    onClick={handleOpenBuffetDialog}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Wine className="w-4 h-4 mr-2" />
+                    Mở Buffet
+                  </Button>
+                )}
+              </div>
             </div>
           </DialogFooter>
         </DialogContent>
@@ -798,6 +895,63 @@ export default function TableManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Buffet Activation Dialog */}
+      <Dialog open={isBuffetDialogOpen} onOpenChange={setIsBuffetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kích hoạt Buffet - {selectedTable?.name}</DialogTitle>
+            <DialogDescription>Nhập số lượng khách và chọn gói buffet</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Số người lớn (Adult)</Label>
+                <Input 
+                  type="number" 
+                  min="1" 
+                  value={buffetData.num_adults}
+                  onChange={(e) => setBuffetData({...buffetData, num_adults: parseInt(e.target.value) || 1})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Số trẻ em (Child)</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  value={buffetData.num_children}
+                  onChange={(e) => setBuffetData({...buffetData, num_children: parseInt(e.target.value) || 0})}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Gói Buffet</Label>
+              <Select 
+                value={buffetData.package_id} 
+                onValueChange={(val) => setBuffetData({...buffetData, package_id: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn gói buffet..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {buffetPackages.map(pkg => (
+                    <SelectItem key={pkg.id} value={pkg.id.toString()}>
+                      {pkg.name} - {new Intl.NumberFormat('vi-VN').format(pkg.price)}đ
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBuffetDialogOpen(false)}>Hủy</Button>
+            <Button onClick={handleActivateBuffet} disabled={formLoading} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {formLoading ? "Đang xử lý..." : "Bắt đầu Buffet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

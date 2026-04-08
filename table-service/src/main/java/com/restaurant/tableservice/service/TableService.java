@@ -120,6 +120,13 @@ public class TableService {
             reservation.setCustomerId(((Number) payload.get("customer_id")).intValue());
         }
 
+        if (payload.get("num_adults") != null) {
+            reservation.setNumAdults(((Number) payload.get("num_adults")).intValue());
+        }
+        if (payload.get("num_children") != null) {
+            reservation.setNumChildren(((Number) payload.get("num_children")).intValue());
+        }
+
         try {
             return tableReservationRepository.save(reservation);
         } catch (DataIntegrityViolationException e) {
@@ -451,7 +458,23 @@ public class TableService {
         try {
             return LocalDateTime.parse(value, DateTimeFormatter.ISO_DATE_TIME);
         } catch (Exception e) {
-            throw new RuntimeException("Định dạng thời gian không hợp lệ: " + fieldName);
+            throw new RuntimeException("Format date cho " + fieldName + " khong hop le (ISO)");
+        }
+    }
+
+    @Transactional
+    public void updateActiveReservationGuestCounts(@NonNull Integer tableId, Integer numAdults, Integer numChildren) {
+        // Find active reservation: pending or confirmed or serving
+        List<com.restaurant.tableservice.entity.TableReservation> reservations = 
+            tableReservationRepository.findByTableIdAndStatusIn(tableId, List.of("pending", "confirmed", "serving"));
+        
+        if (!reservations.isEmpty()) {
+            // Usually there's only one active session at a time
+            com.restaurant.tableservice.entity.TableReservation res = reservations.get(0);
+            res.setNumAdults(numAdults);
+            res.setNumChildren(numChildren);
+            tableReservationRepository.save(res);
+            log.info("Updated guest counts for reservation {}: adults={}, children={}", res.getId(), numAdults, numChildren);
         }
     }
 }
