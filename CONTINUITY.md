@@ -1,5 +1,5 @@
 ﻿Goal (incl. success criteria):
-- Sửa các chữ tiếng Việt không dấu còn lại (đặc biệt màn Buffet) thành có dấu.
+- Ẩn chữ "undefined" ở mô tả gói buffet và bỏ cụm "Chưa cấu hình CSDL" khỏi tên gói mặc định.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -37,7 +37,7 @@ State:
       - Commit: `9c297a2`
       - Message: `fix(qr-ui): rename order labels to invoice`
   - Now:
-    - Đã sửa các chữ không dấu còn lại trong UI buffet (chưa commit/push).
+    - Đã ẩn mô tả gói buffet khi thiếu và bỏ cụm "Chưa cấu hình CSDL" khỏi fallback (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
@@ -48,4 +48,3 @@ Working set (files/ids/commands):
 - `CONTINUITY.md`
 - `rule/continuity-ledger-rule.mdc`
 - `table-service/src/main/resources/static/js/app.js`
-- `table-service/src/main/resources/static/index.html`

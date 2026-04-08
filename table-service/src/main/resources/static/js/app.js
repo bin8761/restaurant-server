@@ -456,7 +456,7 @@ function renderBuffetPackages() {
       ${pkg.popular ? '<span class="buffet-package-badge">Phổ biến</span>' : ''}
       <div class="buffet-package-header">
         <h3 class="buffet-package-name">${pkg.name}</h3>
-        <p class="buffet-package-desc">${pkg.description}</p>
+        ${pkg.description ? `<p class="buffet-package-desc">${pkg.description}</p>` : ''}
       </div>
       <div class="buffet-package-price">
         <span class="buffet-package-amount">${formatCurrency(pkg.price)}</span>
@@ -888,7 +888,7 @@ async function loadBuffetPackages() {
   // Buffet packages endpoint not migrated to microservices yet
   try {
     const res = await fetchJson('/api/menu/buffet-packages');
-    state.buffetPackages = res?.length ? res : [{ id: 1, name: 'Buffet Tiêu Chuẩn (Chưa cấu hình CSDL)', price: 299000 }];
+    state.buffetPackages = res?.length ? res : [{ id: 1, name: 'Buffet Tiêu Chuẩn', price: 299000 }];
   } catch (e) {
     state.buffetPackages = [{ id: 1, name: 'Buffet Tiêu Chuẩn (Lỗi mạng)', price: 299000 }];
   }
