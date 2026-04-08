@@ -12,6 +12,7 @@ import {
     RefreshCw,
     PackagePlus,
     PackageMinus,
+    FileDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,12 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -54,6 +61,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/lib/axios";
+import * as XLSX from "xlsx";
 
 // Types based on API
 interface Ingredient {
@@ -68,6 +76,13 @@ const fetcher = (url: string) => api.get(url).then((res) => res.data);
 
 // Units list
 const units = ["kg", "g", "lít", "ml", "cái", "hộp", "chai", "gói", "con"];
+
+const formatDateYYYYMMDD = (date = new Date()) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}${m}${d}`;
+};
 
 export default function InventoryPage() {
     const { toast } = useToast();
@@ -255,6 +270,35 @@ export default function InventoryPage() {
         return matchesSearch;
     });
 
+    const exportInventoryXlsx = (items: Ingredient[], mode: "all" | "low") => {
+        if (!items.length) {
+            toast({
+                title: "Không có dữ liệu để xuất",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const data = items.map((item) => ({
+            ID: item.id,
+            "Tên nguyên liệu": item.name,
+            "Đơn vị": item.unit,
+            "Số lượng tồn": `${item.quantity} ${item.unit}`,
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Kho");
+
+        const suffix = formatDateYYYYMMDD();
+        const filename =
+            mode === "low"
+                ? `kho-sap-het-${suffix}.xlsx`
+                : `kho-${suffix}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+    };
+
     // Stats
     const totalItems = ingredients.length;
     const lowStockCount = lowStockItems.length;
@@ -327,6 +371,22 @@ export default function InventoryPage() {
                                 className="pl-9"
                             />
                         </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <FileDown className="mr-2 size-4" />
+                                    Xuất Excel
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => exportInventoryXlsx(ingredients, "all")}>
+                                    Toàn kho
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportInventoryXlsx(lowStockItems, "low")}>
+                                    Sắp hết hàng
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="outline" size="icon" onClick={handleRefresh}>
                             <RefreshCw className="size-4" />
                         </Button>
