@@ -965,7 +965,8 @@ input {
 
 .stat-value {
   display: block;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xl);
   font-weight: 700;
   color: var(--color-text);
@@ -1236,7 +1237,8 @@ input {
 
 .cart-cta .btn,
 .payment-cta .btn {
-  max-width: 640px;
+  display: flex;
+  width: min(640px, 100%);
   margin: 0 auto;
 }
 
