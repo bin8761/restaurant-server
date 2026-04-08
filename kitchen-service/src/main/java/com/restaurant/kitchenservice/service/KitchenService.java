@@ -11,6 +11,7 @@ import com.restaurant.kitchenservice.repository.KitchenQueueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -64,17 +65,12 @@ public class KitchenService {
         socketService.emitNewOrderItems(payload);
     }
 
-    @Transactional
     public KitchenQueue updateQueueItemStatus(@NonNull Integer id, String status) {
         String normalizedStatus = normalizeQueueStatus(status);
         if (normalizedStatus == null) {
             throw new RuntimeException("Trang thai cap nhat khong hop le");
         }
-        KitchenQueue item = kitchenQueueRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy món trong hàng đợi"));
-
-        item.setStatus(normalizedStatus);
-        kitchenQueueRepository.save(item);
+        KitchenQueue item = persistQueueStatus(id, normalizedStatus);
 
         // 🔔 Emit queue status update — mirrors: io.emit('queue_status_updated', ...)
         Map<String, Object> queuePayload = new HashMap<>();
@@ -161,6 +157,14 @@ public class KitchenService {
         }
 
         return item;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected KitchenQueue persistQueueStatus(@NonNull Integer id, @NonNull String status) {
+        KitchenQueue item = kitchenQueueRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy món trong hàng đợi"));
+        item.setStatus(status);
+        return kitchenQueueRepository.save(item);
     }
 
     private String normalizeQueueStatus(String status) {
