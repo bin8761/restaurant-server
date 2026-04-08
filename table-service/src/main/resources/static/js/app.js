@@ -388,7 +388,7 @@ function renderCategories() {
   const container = document.getElementById('categories-list');
   if (!container) return;
 
-  const categories = [{ id: 'all', name: 'Tat ca' }, ...state.menuCategories.map((category) => ({
+  const categories = [{ id: 'all', name: 'Tất cả' }, ...state.menuCategories.map((category) => ({
     id: String(category.id),
     name: category.name,
   }))];
@@ -403,8 +403,8 @@ function renderCategories() {
 function renderMenuItem(food, isBuffet = false) {
   const imageUrl = getImageUrl(food.image_url);
   const imageHtml = imageUrl
-    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\'menu-item-image-placeholder\'>No Image</div>'">`
-    : `<div class="menu-item-image-placeholder">No Image</div>`;
+    ? `<img src="${imageUrl}" alt="${food.name}" onerror="this.parentElement.innerHTML='<div class=\\'menu-item-image-placeholder\\'>Không có ảnh</div>'">`
+    : `<div class="menu-item-image-placeholder">Không có ảnh</div>`;
 
   return `
     <div class="menu-item-card" onclick="openFoodModal('${String(food.id)}', ${isBuffet})">
@@ -412,7 +412,7 @@ function renderMenuItem(food, isBuffet = false) {
       <div class="menu-item-info">
         <h4 class="menu-item-name">${food.name}</h4>
         ${food.category_name ? `<p class="menu-item-desc">${food.category_name}</p>` : ''}
-        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price)}</p>
+        <p class="menu-item-price">${isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price)}</p>
       </div>
     </div>
   `;
@@ -453,19 +453,19 @@ function renderBuffetPackages() {
 
   container.innerHTML = state.buffetPackages.map((pkg) => `
     <div class="buffet-package-card ${pkg.popular ? 'popular' : ''}">
-      ${pkg.popular ? '<span class="buffet-package-badge">Pho bien</span>' : ''}
+      ${pkg.popular ? '<span class="buffet-package-badge">Phổ biến</span>' : ''}
       <div class="buffet-package-header">
         <h3 class="buffet-package-name">${pkg.name}</h3>
         <p class="buffet-package-desc">${pkg.description}</p>
       </div>
       <div class="buffet-package-price">
         <span class="buffet-package-amount">${formatCurrency(pkg.price)}</span>
-        <span class="buffet-package-unit">/ nguoi</span>
+        <span class="buffet-package-unit">/ người</span>
       </div>
       <ul class="buffet-package-features">
         ${(pkg.features || []).map((feature) => `<li>${feature}</li>`).join('')}
       </ul>
-      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">Chon goi nay</button>
+      <button class="btn btn-primary btn-full buffet-package-cta" onclick="selectBuffetPackage('${String(pkg.id)}')">Chọn gói này</button>
     </div>
   `).join('');
 }
@@ -533,8 +533,8 @@ function renderCart() {
   itemsEl.innerHTML = state.cart.map((item, index) => {
     const cartImageUrl = getImageUrl(item.image_url);
     const imageHtml = cartImageUrl
-      ? `<img src="${cartImageUrl}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\\'cart-item-image-placeholder\\'>No Image</div>'">`
-      : `<div class="cart-item-image-placeholder">No Image</div>`;
+      ? `<img src="${cartImageUrl}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\\'cart-item-image-placeholder\\'>Không có ảnh</div>'">`
+      : `<div class="cart-item-image-placeholder">Không có ảnh</div>`;
 
     return `
       <div class="cart-item">
@@ -702,7 +702,7 @@ function openFoodModal(foodId, isBuffet = false) {
 
   document.getElementById('food-modal-name').textContent = food.name;
   document.getElementById('food-modal-desc').textContent = food.category_name || (isBuffet ? 'Món buffet' : 'Món ăn');
-  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIEN PHI' : formatCurrency(food.price);
+  document.getElementById('food-modal-price').textContent = isBuffet && state.isBuffetActive ? 'MIỄN PHÍ' : formatCurrency(food.price);
   document.getElementById('food-modal-quantity').textContent = '1';
   document.getElementById('add-to-cart-btn').textContent = state.isBuffetActive ? 'Gọi món' : 'Thêm món';
 
@@ -821,7 +821,7 @@ function selectBuffetPackage(packageId) {
   state.selectedBuffetPackage = pkg;
   document.getElementById('buffet-confirm-details').innerHTML = `
     <div class="buffet-confirm-row"><span class="buffet-confirm-label">Goi buffet</span><span class="buffet-confirm-value">${pkg.name}</span></div>
-    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Gia / nguoi</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
+    <div class="buffet-confirm-row"><span class="buffet-confirm-label">Giá / người</span><span class="buffet-confirm-value">${formatCurrency(pkg.price)}</span></div>
   `;
   document.getElementById('buffet-confirm-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';

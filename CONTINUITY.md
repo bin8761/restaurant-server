@@ -1,6 +1,5 @@
 ﻿Goal (incl. success criteria):
-- Đổi luồng thanh toán: bấm "Thanh toán" sẽ gọi SePay và tạo QR ngay, không chọn phương thức, không cần nút tạo QR.
-- Cập nhật nhãn nút/ghi chú phù hợp và đảm bảo tiếng Việt có dấu.
+- Sửa các chữ tiếng Việt không dấu còn lại (đặc biệt màn Buffet) thành có dấu.
 - Keep SePay flow continuity context preserved in ledger.
 
 Constraints/Assumptions:
@@ -37,10 +36,8 @@ State:
     - Committed and pushed đổi "Đơn hàng" -> "Hóa đơn":
       - Commit: `9c297a2`
       - Message: `fix(qr-ui): rename order labels to invoice`
-    - Đã cập nhật toàn bộ chuỗi hiển thị sang tiếng Việt có dấu trong `app.js`.
-    - Đã thêm CSS mobile để header hiển thị rõ thông tin bàn.
   - Now:
-    - Đang chuyển luồng thanh toán sang SePay-only và tự tạo QR khi mở modal (chưa commit/push).
+    - Đã sửa các chữ không dấu còn lại trong UI buffet (chưa commit/push).
   - Next:
     - Commit/push nếu người dùng yêu cầu.
 
