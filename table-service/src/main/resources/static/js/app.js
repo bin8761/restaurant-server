@@ -168,9 +168,15 @@ async function detectImageServiceAvailability(foods = []) {
       cache: 'no-store',
       signal: controller.signal,
     });
-    state.imagesEnabled = res.ok;
+    if (res.ok) {
+      state.imagesEnabled = true;
+    } else {
+      // Some image servers block HEAD; allow images and let <img onerror> handle failures.
+      state.imagesEnabled = [401, 403, 405].includes(res.status);
+    }
   } catch (_err) {
-    state.imagesEnabled = false;
+    // Be optimistic to avoid false negatives when HEAD is blocked or flaky.
+    state.imagesEnabled = true;
   } finally {
     clearTimeout(timeoutId);
   }
