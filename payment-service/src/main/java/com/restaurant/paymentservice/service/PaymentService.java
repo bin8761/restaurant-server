@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -28,6 +30,7 @@ public class PaymentService {
 
     private static final String STATUS_WAITING = "waiting";
     private static final String STATUS_PAID = "paid";
+    private static final Pattern TX_REF_PATTERN = Pattern.compile("SP\\d+_\\d+");
 
     private final PaymentRequestRepository paymentRequestRepository;
     private final PaymentRepository paymentRepository;
@@ -179,11 +182,7 @@ public class PaymentService {
         }
 
         Map<String, Object> data = parseJsonMap(rawPayload);
-        String transactionRef = firstNonBlank(
-                asString(data.get("transaction_ref")),
-                asString(data.get("reference")),
-                asString(data.get("transactionId"))
-        );
+        String transactionRef = extractTransactionRefFromWebhook(data);
         String providerReference = firstNonBlank(
                 asString(data.get("provider_reference")),
                 asString(data.get("providerReference")),
@@ -487,6 +486,43 @@ public class PaymentService {
             return "EXPIRED";
         }
         return normalized;
+    }
+
+    private String extractTransactionRefFromWebhook(Map<String, Object> data) {
+        String[] candidates = new String[]{
+                asString(data.get("transaction_ref")),
+                asString(data.get("reference")),
+                asString(data.get("transactionId")),
+                asString(data.get("code")),
+                asString(data.get("content")),
+                asString(data.get("description")),
+                asString(data.get("transfer_content")),
+                asString(data.get("transferContent")),
+                asString(data.get("transaction_content"))
+        };
+
+        for (String candidate : candidates) {
+            String extracted = extractTransactionRef(candidate);
+            if (extracted != null) {
+                return extracted;
+            }
+        }
+        return null;
+    }
+
+    private String extractTransactionRef(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (TX_REF_PATTERN.matcher(trimmed).matches()) {
+            return trimmed;
+        }
+        Matcher matcher = TX_REF_PATTERN.matcher(trimmed);
+        if (matcher.find()) {
+            return matcher.group();
+        }
+        return null;
     }
 
     private Map<String, Object> parseJsonMap(String rawPayload) {

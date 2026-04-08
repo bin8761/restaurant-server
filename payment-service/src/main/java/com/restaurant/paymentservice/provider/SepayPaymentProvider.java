@@ -10,9 +10,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -65,14 +68,37 @@ public class SepayPaymentProvider implements PaymentProvider {
 
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(body, headers);
         ResponseEntity<String> response;
+        log.info("SePay create request: mode={}, url={}, txRef={}",
+                userApiMode ? "userapi" : "legacy",
+                url,
+                transactionRef);
         try {
             response = restTemplate.postForEntity(url, requestEntity, String.class);
+        } catch (HttpStatusCodeException ex) {
+            log.error("SePay create failed: url={}, mode={}, txRef={}, status={}, body={}",
+                    url,
+                    userApiMode ? "userapi" : "legacy",
+                    transactionRef,
+                    ex.getStatusCode().value(),
+                    truncate(ex.getResponseBodyAsString(), 300));
+
+            Map<String, Object> directQr = tryBuildDirectQrFallback(transactionRef, amount, expireAt, "http_" + ex.getStatusCode().value());
+            if (directQr != null && ex.getStatusCode().value() == 404) {
+                return directQr;
+            }
+
+            throw new RuntimeException("SePay request failed: " + ex.getStatusCode().value() + " " + ex.getStatusText(), ex);
         } catch (RestClientException ex) {
             log.error("SePay create failed: url={}, mode={}, txRef={}, reason={}",
                     url,
                     userApiMode ? "userapi" : "legacy",
                     transactionRef,
                     ex.toString());
+
+            Map<String, Object> directQr = tryBuildDirectQrFallback(transactionRef, amount, expireAt, ex.getClass().getSimpleName());
+            if (directQr != null) {
+                return directQr;
+            }
             throw new RuntimeException("SePay request failed: " + ex.getClass().getSimpleName(), ex);
         }
 
@@ -346,6 +372,109 @@ public class SepayPaymentProvider implements PaymentProvider {
             return normalized.equals("true") || normalized.equals("1") || normalized.equals("yes") || normalized.equals("on");
         }
         return properties.isUserapiEnabled();
+    }
+
+    private Map<String, Object> tryBuildDirectQrFallback(String transactionRef,
+                                                         BigDecimal amount,
+                                                         LocalDateTime expireAt,
+                                                         String reason) {
+        if (!properties.isDirectQrFallbackEnabled()) {
+            return null;
+        }
+
+        String bank = resolveDirectQrBank();
+        String account = resolveDirectQrAccount();
+        if (bank.isBlank() || account.isBlank()) {
+            log.warn("Skip direct QR fallback because bank/account missing. bank={}, accountPresent={}",
+                    bank,
+                    !account.isBlank());
+            return null;
+        }
+
+        String qrImageUrl = buildDirectQrImageUrl(bank, account, amount, transactionRef);
+
+        log.warn("Use direct QR fallback for txRef={}, reason={}, bank={}, accountTail={}",
+                transactionRef,
+                reason,
+                bank,
+                account.length() > 4 ? account.substring(account.length() - 4) : account);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("provider_reference", "direct-" + transactionRef);
+        response.put("transaction_ref", transactionRef);
+        response.put("amount", amount);
+        response.put("expire_at", expireAt != null ? expireAt.toString() : null);
+        response.put("qr_content", transactionRef);
+        response.put("qr_image_url", qrImageUrl);
+        response.put("pay_url", qrImageUrl);
+        response.put("raw", Map.of(
+                "fallback", "direct_qr",
+                "reason", reason,
+                "bank", bank,
+                "account_tail", account.length() > 4 ? account.substring(account.length() - 4) : account
+        ));
+        return response;
+    }
+
+    private String buildDirectQrImageUrl(String bank, String account, BigDecimal amount, String transactionRef) {
+        String amountText = amount == null ? "0" : amount.stripTrailingZeros().toPlainString();
+        return "https://qr.sepay.vn/img"
+                + "?acc=" + encode(account)
+                + "&bank=" + encode(bank)
+                + "&amount=" + encode(amountText)
+                + "&des=" + encode(transactionRef);
+    }
+
+    private String resolveDirectQrBank() {
+        String rawBank = normalizeSecret(System.getenv("SEPAY_BANK_NAME"));
+        if (rawBank.isBlank()) {
+            rawBank = normalizeSecret(System.getenv("SEPAY_BANK_CODE"));
+        }
+        if (rawBank.isBlank()) {
+            rawBank = normalizeSecret(properties.getBankCode());
+        }
+        if (rawBank.isBlank()) {
+            return "";
+        }
+
+        String normalized = normalizeBankCode(rawBank);
+        return switch (normalized) {
+            case "vietinbank", "icb" -> "VietinBank";
+            case "bidv" -> "BIDV";
+            case "vietcombank", "vcb" -> "Vietcombank";
+            case "techcombank", "tcb" -> "Techcombank";
+            default -> rawBank;
+        };
+    }
+
+    private String resolveDirectQrAccount() {
+        String account = normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT"));
+        if (!account.isBlank()) {
+            return account;
+        }
+        account = normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT_NUMBER"));
+        if (!account.isBlank()) {
+            return account;
+        }
+        account = normalizeSecret(properties.getBankAccountId());
+        if (!account.isBlank()) {
+            return account;
+        }
+        return normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT_ID"));
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 
     private String normalizeSecret(String value) {

@@ -16,6 +16,7 @@ public class SepayProperties {
     private String verifyPath = "/v1/payments/verify";
     private String userapiBaseUrl = "https://my.sepay.vn";
     private boolean userapiEnabled = false;
+    private boolean directQrFallbackEnabled = true;
     private String bankCode = "";
     private String bankAccountId = "";
     private int httpConnectTimeoutMs = 8000;

@@ -31,6 +31,7 @@ payment:
     verify-path: ${SEPAY_VERIFY_PATH:/v1/payments/verify}
     userapi-base-url: ${SEPAY_USERAPI_BASE_URL:https://my.sepay.vn}
     userapi-enabled: ${SEPAY_USERAPI_ENABLED:false}
+    direct-qr-fallback-enabled: ${SEPAY_DIRECT_QR_FALLBACK_ENABLED:true}
     bank-code: ${SEPAY_BANK_CODE:${SEPAY_BANK_NAME:}}
     bank-account-id: ${SEPAY_BANK_ACCOUNT_ID:${SEPAY_BANK_ACCOUNT:}}
     api-key: ${SEPAY_API_KEY:${SEPAY_API_TOKEN:}}
