@@ -28,8 +28,23 @@ public class KitchenController {
     }
 
     @PutMapping("/queue/{id}/status")
-    public ResponseEntity<KitchenQueue> updateQueueItemStatus(@PathVariable @NonNull Integer id, @RequestBody Map<String, String> payload) {
-        return ResponseEntity.ok(kitchenService.updateQueueItemStatus(id, payload.get("status")));
+    public ResponseEntity<KitchenQueue> updateQueueItemStatus(
+            @PathVariable @NonNull Integer id,
+            @RequestBody(required = false) Map<String, Object> payload,
+            @RequestParam(required = false) String status
+    ) {
+        String resolvedStatus = status;
+
+        if ((resolvedStatus == null || resolvedStatus.isBlank()) && payload != null) {
+            Object rawStatus = payload.get("status");
+            if (rawStatus == null) rawStatus = payload.get("newStatus");
+            if (rawStatus == null) rawStatus = payload.get("state");
+            if (rawStatus != null) {
+                resolvedStatus = String.valueOf(rawStatus);
+            }
+        }
+
+        return ResponseEntity.ok(kitchenService.updateQueueItemStatus(id, resolvedStatus));
     }
 
     @DeleteMapping("/queue/{id}")

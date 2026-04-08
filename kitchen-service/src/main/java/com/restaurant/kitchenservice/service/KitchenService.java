@@ -66,10 +66,14 @@ public class KitchenService {
 
     @Transactional
     public KitchenQueue updateQueueItemStatus(@NonNull Integer id, String status) {
+        String normalizedStatus = normalizeQueueStatus(status);
+        if (normalizedStatus == null) {
+            throw new RuntimeException("Trang thai cap nhat khong hop le");
+        }
         KitchenQueue item = kitchenQueueRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy món trong hàng đợi"));
 
-        item.setStatus(status);
+        item.setStatus(normalizedStatus);
         kitchenQueueRepository.save(item);
 
         // 🔔 Emit queue status update — mirrors: io.emit('queue_status_updated', ...)
@@ -78,7 +82,11 @@ public class KitchenService {
         queuePayload.put("order_detail_id", item.getOrderDetailId());
         queuePayload.put("status", item.getStatus());
         queuePayload.put("updated_at", item.getUpdatedAt());
-        socketService.emitQueueStatusUpdated(queuePayload);
+        try {
+            socketService.emitQueueStatusUpdated(queuePayload);
+        } catch (Exception e) {
+            log.warn("Cannot emit queue status updated for id={}, continue: {}", id, e.getMessage());
+        }
 
         Map<String, Object> itemContext = null;
         try {
@@ -98,11 +106,15 @@ public class KitchenService {
             itemPayload.put("quantity", itemContext.get("quantity"));
             itemPayload.put("status", itemContext.get("status"));
             itemPayload.put("updated_at", itemContext.get("updated_at"));
-            socketService.emitTableItemStatus(tableIdNumber != null ? tableIdNumber.intValue() : null, itemPayload);
+            try {
+                socketService.emitTableItemStatus(tableIdNumber != null ? tableIdNumber.intValue() : null, itemPayload);
+            } catch (Exception e) {
+                log.warn("Cannot emit table item status for id={}, continue: {}", id, e.getMessage());
+            }
         }
 
         // 🔔 If completed, emit delivered event — mirrors: io.emit('queue_item_delivered', ...)
-        if ("Hoàn thành".equals(status)) {
+        if ("Hoàn thành".equals(normalizedStatus)) {
             socketService.emitQueueItemDelivered(queuePayload);
             // 🥗 Kích hoạt trừ kho định lượng
             try {
@@ -149,6 +161,22 @@ public class KitchenService {
         }
 
         return item;
+    }
+
+    private String normalizeQueueStatus(String status) {
+        if (status == null) return null;
+        String s = status.trim();
+        if (s.isEmpty()) return null;
+
+        String lower = s.toLowerCase();
+        if (lower.contains("ho") && lower.contains("thanh")) return "Hoàn thành";
+        if (lower.contains("dang") || lower.contains("làm") || lower.contains("lam") || lower.contains("cook")) return "Đang chế biến";
+        if (lower.contains("cho") || lower.contains("chờ") || lower.contains("pend")) return "Chờ chế biến";
+
+        if ("Hoàn thành".equals(s) || "Đang chế biến".equals(s) || "Chờ chế biến".equals(s)) {
+            return s;
+        }
+        return null;
     }
 
     @Transactional
