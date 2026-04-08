@@ -103,8 +103,6 @@ export default function TableManagementPage() {
   // Fetch tables on mount
   useEffect(() => {
     fetchTables();
-    const interval = setInterval(fetchTables, 20000); // Auto refresh every 20s
-    return () => clearInterval(interval);
   }, []);
 
   // Countdown tick mỗi giây

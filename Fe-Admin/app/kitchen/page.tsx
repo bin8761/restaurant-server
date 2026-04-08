@@ -65,7 +65,6 @@ export default function KitchenPage() {
     mutate: mutateQueue,
     isLoading: isLoadingQueue,
   } = useSWR<KitchenItem[]>("/kitchen/queue", fetcher, {
-    refreshInterval: 5000, // Auto refresh every 5 seconds
   });
 
   // Fetch kitchen stats
@@ -74,7 +73,6 @@ export default function KitchenPage() {
     mutate: mutateStats,
     isLoading: isLoadingStats,
   } = useSWR<KitchenStats>("/kitchen/stats", fetcher, {
-    refreshInterval: 5000,
   });
 
   useEffect(() => {

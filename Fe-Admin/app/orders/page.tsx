@@ -262,9 +262,6 @@ export default function OrdersManagementPage() {
 
     useEffect(() => {
         fetchOrders();
-        // Auto refresh every 10s to catch new orders from customers
-        const interval = setInterval(fetchOrders, 10000);
-        return () => clearInterval(interval);
     }, [fetchOrders]);
 
     useEffect(() => {

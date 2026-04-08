@@ -140,8 +140,6 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     fetchData();
-    const timer = setInterval(fetchData, 20000);
-    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

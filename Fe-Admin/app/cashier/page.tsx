@@ -214,13 +214,11 @@ export default function CashierPage() {
     const { data: waitingPayments, isLoading: isLoadingWaiting } = useSWR<WaitingPayment[]>(
         "/payments/waiting",
         fetcher,
-        { refreshInterval: 10000 } // Tăng interval lên 10s vì đã có socket LIVE
     );
 
     const { data: allSessions, isLoading: isLoadingOrders } = useSWR<OrderSessionSummary[]>(
         "/orders/sessions",
         fetcher,
-        { refreshInterval: 15000 }
     );
 
     const selectedSessionDetailKey = selectedPayment

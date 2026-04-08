@@ -77,7 +77,6 @@ export default function PaymentsPage() {
   const { data, isLoading } = useSWR<SepayTransaction[]>(
     swrKey,
     () => listSepayTransactions(status === "ALL" ? undefined : status, query || undefined),
-    { refreshInterval: 10000 }
   );
 
   const normalizedQuery = useMemo(() => normalizeOrderIdQuery(query), [query]);
