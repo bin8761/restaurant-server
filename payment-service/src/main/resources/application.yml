@@ -25,11 +25,15 @@ services:
 
 payment:
   sepay:
-    base-url: ${SEPAY_BASE_URL:https://api.sepay.vn}
+    create-url: ${SEPAY_CREATE_URL:}
+    base-url: ${SEPAY_BASE_URL:${SEPAY_API_BASE_URL:https://api.sepay.vn}}
     create-path: ${SEPAY_CREATE_PATH:/v1/payments/create}
     verify-path: ${SEPAY_VERIFY_PATH:/v1/payments/verify}
-    api-key: ${SEPAY_API_KEY:}
-    webhook-secret: ${SEPAY_WEBHOOK_SECRET:}
+    userapi-base-url: ${SEPAY_USERAPI_BASE_URL:https://my.sepay.vn}
+    bank-code: ${SEPAY_BANK_CODE:${SEPAY_BANK_NAME:}}
+    bank-account-id: ${SEPAY_BANK_ACCOUNT_ID:${SEPAY_BANK_ACCOUNT:}}
+    api-key: ${SEPAY_API_KEY:${SEPAY_API_TOKEN:}}
+    webhook-secret: ${SEPAY_WEBHOOK_SECRET:${SEPAY_IPN_API_KEY:}}
     return-url: ${SEPAY_RETURN_URL:}
     timeout-minutes: ${SEPAY_TIMEOUT_MINUTES:15}
     timeout-check-ms: ${SEPAY_TIMEOUT_CHECK_MS:30000}

@@ -10,9 +10,13 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "payment.sepay")
 public class SepayProperties {
+    private String createUrl = "";
     private String baseUrl = "https://api.sepay.vn";
     private String createPath = "/v1/payments/create";
     private String verifyPath = "/v1/payments/verify";
+    private String userapiBaseUrl = "https://my.sepay.vn";
+    private String bankCode = "";
+    private String bankAccountId = "";
     private String apiKey = "";
     private String webhookSecret = "";
     private String returnUrl = "";

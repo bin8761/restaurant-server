@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,16 +49,9 @@ public class SepayPaymentProvider implements PaymentProvider {
             return buildMockResponse(transactionRef, amount, description, expireAt);
         }
 
-        String baseUrl = resolveBaseUrl();
-        String createPath = resolveCreatePath();
-        String url = trimSlash(baseUrl) + withLeadingSlash(createPath);
-        Map<String, Object> body = new HashMap<>();
-        body.put("reference", transactionRef);
-        body.put("amount", amount);
-        body.put("content", description);
-        body.put("description", description);
-        body.put("expire_at", expireAt != null ? expireAt.toString() : null);
-        body.put("return_url", normalizeSecret(properties.getReturnUrl()));
+        String url = resolveCreateUrl();
+        boolean userApiMode = isUserApiOrderUrl(url);
+        Map<String, Object> body = buildCreateRequestBody(userApiMode, transactionRef, amount, description, expireAt);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -67,14 +61,15 @@ public class SepayPaymentProvider implements PaymentProvider {
         ResponseEntity<String> response = restTemplate.postForEntity(url, requestEntity, String.class);
 
         Map<String, Object> parsed = parseResponse(response.getBody());
+        Map<String, Object> source = extractPrimaryPayload(parsed);
         Map<String, Object> normalized = new HashMap<>();
-        normalized.put("provider_reference", firstNonNull(parsed, "provider_reference", "reference", "transaction_id", "id"));
+        normalized.put("provider_reference", firstNonNull(source, "provider_reference", "reference", "transaction_id", "id", "order_id"));
         normalized.put("transaction_ref", transactionRef);
         normalized.put("amount", amount);
-        normalized.put("expire_at", firstNonNull(parsed, "expire_at", "expired_at"));
-        normalized.put("qr_content", firstNonNull(parsed, "qr_content", "qr", "qr_data", "qrCode", "content"));
-        normalized.put("qr_image_url", firstNonNull(parsed, "qr_image_url", "qr_image", "qrImage", "qr_url"));
-        normalized.put("pay_url", firstNonNull(parsed, "pay_url", "payment_url", "checkout_url"));
+        normalized.put("expire_at", firstNonNull(source, "expire_at", "expired_at", "expires_at"));
+        normalized.put("qr_content", firstNonNull(source, "qr_content", "qr", "qr_data", "qrCode", "content", "code"));
+        normalized.put("qr_image_url", firstNonNull(source, "qr_image_url", "qr_image", "qrImage", "qr_url", "qr_code_url", "qr_code"));
+        normalized.put("pay_url", firstNonNull(source, "pay_url", "payment_url", "checkout_url", "hosted_link_url"));
         normalized.put("raw", parsed);
         return normalized;
     }
@@ -177,6 +172,152 @@ public class SepayPaymentProvider implements PaymentProvider {
             return configuredPath;
         }
         return "/v1/payments/create";
+    }
+
+    private String resolveCreateUrl() {
+        String explicitCreateUrl = normalizeSecret(System.getenv("SEPAY_CREATE_URL"));
+        if (explicitCreateUrl.isBlank()) {
+            explicitCreateUrl = normalizeSecret(properties.getCreateUrl());
+        }
+        if (!explicitCreateUrl.isBlank()) {
+            return explicitCreateUrl;
+        }
+
+        String bankAccountId = resolveBankAccountId();
+        String bankCode = resolveBankCode();
+        if (!bankAccountId.isBlank() && !bankCode.isBlank()) {
+            String userApiBase = resolveUserApiBaseUrl();
+            return trimSlash(userApiBase) + "/userapi/" + bankCode + "/" + bankAccountId + "/orders";
+        }
+
+        String baseUrl = resolveBaseUrl();
+        String createPath = resolveCreatePath();
+        return trimSlash(baseUrl) + withLeadingSlash(createPath);
+    }
+
+    private boolean isUserApiOrderUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        String lower = url.toLowerCase();
+        return lower.contains("/userapi/") && lower.endsWith("/orders");
+    }
+
+    private Map<String, Object> buildCreateRequestBody(boolean userApiMode,
+                                                       String transactionRef,
+                                                       BigDecimal amount,
+                                                       String description,
+                                                       LocalDateTime expireAt) {
+        Map<String, Object> body = new HashMap<>();
+        if (userApiMode) {
+            body.put("amount", normalizeAmount(amount));
+            body.put("order_code", transactionRef);
+            body.put("duration", calculateDurationSeconds(expireAt));
+            body.put("with_qrcode", true);
+            if (description != null && !description.isBlank()) {
+                body.put("note", description);
+            }
+            return body;
+        }
+
+        body.put("reference", transactionRef);
+        body.put("amount", amount);
+        body.put("content", description);
+        body.put("description", description);
+        body.put("expire_at", expireAt != null ? expireAt.toString() : null);
+        body.put("return_url", normalizeSecret(properties.getReturnUrl()));
+        return body;
+    }
+
+    private Object normalizeAmount(BigDecimal amount) {
+        if (amount == null) {
+            return null;
+        }
+        try {
+            return amount.longValueExact();
+        } catch (ArithmeticException ignored) {
+            return amount;
+        }
+    }
+
+    private long calculateDurationSeconds(LocalDateTime expireAt) {
+        if (expireAt == null) {
+            return 600;
+        }
+        long seconds = Duration.between(LocalDateTime.now(), expireAt).getSeconds();
+        if (seconds < 60) {
+            return 60;
+        }
+        return seconds;
+    }
+
+    private String resolveUserApiBaseUrl() {
+        String envValue = normalizeSecret(System.getenv("SEPAY_USERAPI_BASE_URL"));
+        if (!envValue.isBlank()) {
+            return envValue;
+        }
+        String configured = normalizeSecret(properties.getUserapiBaseUrl());
+        if (!configured.isBlank()) {
+            return configured;
+        }
+        return "https://my.sepay.vn";
+    }
+
+    private String resolveBankCode() {
+        String envCode = normalizeSecret(System.getenv("SEPAY_BANK_CODE"));
+        if (envCode.isBlank()) {
+            envCode = normalizeSecret(System.getenv("SEPAY_BANK_NAME"));
+        }
+
+        String configured = normalizeSecret(properties.getBankCode());
+
+        String raw = !envCode.isBlank() ? envCode : configured;
+        return normalizeBankCode(raw);
+    }
+
+    private String resolveBankAccountId() {
+        String envId = normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT_ID"));
+        if (envId.isBlank()) {
+            envId = normalizeSecret(System.getenv("SEPAY_BANK_ACCOUNT"));
+        }
+        if (!envId.isBlank()) {
+            return envId;
+        }
+        return normalizeSecret(properties.getBankAccountId());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractPrimaryPayload(Map<String, Object> parsed) {
+        if (parsed == null || parsed.isEmpty()) {
+            return Map.of();
+        }
+        Object data = parsed.get("data");
+        if (data instanceof Map<?, ?> dataMap) {
+            return (Map<String, Object>) dataMap;
+        }
+        return parsed;
+    }
+
+    private String normalizeBankCode(String value) {
+        String normalized = normalizeSecret(value).toLowerCase();
+        if (normalized.isBlank()) {
+            return "";
+        }
+
+        normalized = normalized.replaceAll("[^a-z0-9]", "");
+        if (normalized.equals("vietinbank")) {
+            return "vietinbank";
+        }
+        if (normalized.equals("bidv")) {
+            return "bidv";
+        }
+        if (normalized.equals("vietcombank")) {
+            return "vietcombank";
+        }
+        if (normalized.equals("techcombank")) {
+            return "techcombank";
+        }
+        return normalized;
     }
 
     private String normalizeSecret(String value) {

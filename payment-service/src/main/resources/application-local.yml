@@ -9,6 +9,10 @@ services:
 
 payment:
   sepay:
+    create-url: ""
+    userapi-base-url: "https://my.sepay.vn"
+    bank-code: ""
+    bank-account-id: ""
     api-key: ""
     webhook-secret: ""
     return-url: ""
