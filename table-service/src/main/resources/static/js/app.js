@@ -113,13 +113,35 @@ function getGatewayUrl() {
 
 function buildImageUrl(imageUrl) {
   if (!imageUrl) return '';
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
-
+  
   const baseUrl = getGatewayUrl();
+
+  const apiIdx = imageUrl.indexOf('/api/images/');
+  if (apiIdx >= 0) return `${baseUrl}${imageUrl.substring(apiIdx)}`;
+
+  const legacyIdx = imageUrl.indexOf('/image-service/uploads/');
+  if (legacyIdx >= 0) {
+    const suffix = imageUrl.substring(legacyIdx + '/image-service/uploads/'.length);
+    return `${baseUrl}/api/images/${suffix}`;
+  }
+
+  const uploadsIdx = imageUrl.indexOf('/uploads/');
+  if (uploadsIdx >= 0) {
+    const suffix = imageUrl.substring(uploadsIdx + '/uploads/'.length);
+    return `${baseUrl}/api/images/${suffix}`;
+  }
+
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
 
   if (imageUrl.startsWith('/api/images/')) return `${baseUrl}${imageUrl}`;
   if (imageUrl.startsWith('/image-service/uploads/')) {
     return `${baseUrl}${imageUrl.replace('/image-service/uploads/', '/api/images/')}`;
+  }
+  if (imageUrl.startsWith('/uploads/')) {
+    return `${baseUrl}/api/images/${imageUrl.substring('/uploads/'.length)}`;
+  }
+  if (imageUrl.startsWith('uploads/')) {
+    return `${baseUrl}/api/images/${imageUrl.substring('uploads/'.length)}`;
   }
   if (!imageUrl.includes('/') && imageUrl.includes('.')) {
     return `${baseUrl}/api/images/foods/${imageUrl}`;

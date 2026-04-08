@@ -33,11 +33,25 @@
 
     function getImageUrl(imageUrl) {
       if (!imageUrl) return '';
-      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
       const base = (window.API_BASE || '').replace(/\/+$/, '');
+
+      const apiIdx = imageUrl.indexOf('/api/images/');
+      if (apiIdx >= 0) return base + imageUrl.substring(apiIdx);
+
+      const legacyIdx = imageUrl.indexOf('/image-service/uploads/');
+      if (legacyIdx >= 0) return base + '/api/images/' + imageUrl.substring(legacyIdx + '/image-service/uploads/'.length);
+
+      const uploadsIdx = imageUrl.indexOf('/uploads/');
+      if (uploadsIdx >= 0) return base + '/api/images/' + imageUrl.substring(uploadsIdx + '/uploads/'.length);
+
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) return imageUrl;
       if (imageUrl.startsWith('/api/images/')) return base + imageUrl;
       if (imageUrl.startsWith('/image-service/uploads/'))
         return base + imageUrl.replace('/image-service/uploads/', '/api/images/');
+      if (imageUrl.startsWith('/uploads/'))
+        return base + '/api/images/' + imageUrl.substring('/uploads/'.length);
+      if (imageUrl.startsWith('uploads/'))
+        return base + '/api/images/' + imageUrl.substring('uploads/'.length);
       if (!imageUrl.includes('/') && imageUrl.includes('.'))
         return base + '/api/images/foods/' + imageUrl;
       return imageUrl;

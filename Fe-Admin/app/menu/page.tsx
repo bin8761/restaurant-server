@@ -89,6 +89,35 @@ const formatCurrency = (value: number): string => {
     }).format(value);
 };
 
+const normalizeImageUrl = (rawUrl?: string): string => {
+    if (!rawUrl) return "";
+    const value = rawUrl.trim();
+    if (!value) return "";
+
+    if (value.startsWith("/api/images/")) return value;
+    if (value.startsWith("/image-service/uploads/")) {
+        return `/api/images/${value.replace("/image-service/uploads/", "")}`;
+    }
+    if (value.startsWith("/uploads/")) {
+        return `/api/images/${value.replace("/uploads/", "")}`;
+    }
+    if (value.startsWith("uploads/")) {
+        return `/api/images/${value.replace("uploads/", "")}`;
+    }
+    if (!value.includes("/") && value.includes(".")) {
+        return `/api/images/foods/${value}`;
+    }
+
+    const apiIdx = value.indexOf("/api/images/");
+    if (apiIdx >= 0) return value.substring(apiIdx);
+    const legacyIdx = value.indexOf("/image-service/uploads/");
+    if (legacyIdx >= 0) return `/api/images/${value.substring(legacyIdx + "/image-service/uploads/".length)}`;
+    const uploadsIdx = value.indexOf("/uploads/");
+    if (uploadsIdx >= 0) return `/api/images/${value.substring(uploadsIdx + "/uploads/".length)}`;
+
+    return value;
+};
+
 export default function MenuManagementPage() {
     // State for foods
     const [foods, setFoods] = useState<Food[]>([]);
@@ -526,7 +555,7 @@ export default function MenuManagementPage() {
                                     <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted flex-shrink-0">
                                         {food.image_url ? (
                                             <img
-                                                src={food.image_url}
+                                                src={normalizeImageUrl(food.image_url)}
                                                 alt={food.name}
                                                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                             />

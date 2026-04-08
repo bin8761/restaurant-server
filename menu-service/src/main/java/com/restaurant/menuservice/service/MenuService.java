@@ -179,7 +179,7 @@ public class MenuService {
         dto.setId(food.getId());
         dto.setName(food.getName());
         dto.setPrice(food.getPrice());
-        dto.setImageUrl(food.getImageUrl());
+        dto.setImageUrl(normalizeImageUrl(food.getImageUrl()));
         if (food.getCategory() != null) {
             dto.setCategoryId(food.getCategory().getId());
             dto.setCategoryName(food.getCategory().getName());
@@ -196,6 +196,48 @@ public class MenuService {
         }
         dto.setIngredients(ingredientDtos);
         return dto;
+    }
+
+    private String normalizeImageUrl(String rawUrl) {
+        if (rawUrl == null) return null;
+        String value = rawUrl.trim();
+        if (value.isEmpty()) return value;
+
+        if (value.startsWith("/api/images/")) {
+            return value;
+        }
+        if (value.startsWith("/image-service/uploads/")) {
+            return "/api/images/" + value.substring("/image-service/uploads/".length());
+        }
+        if (value.startsWith("/uploads/")) {
+            return "/api/images/" + value.substring("/uploads/".length());
+        }
+        if (value.startsWith("uploads/")) {
+            return "/api/images/" + value.substring("uploads/".length());
+        }
+
+        int apiImagesIndex = value.indexOf("/api/images/");
+        if (apiImagesIndex >= 0) {
+            return value.substring(apiImagesIndex);
+        }
+
+        int legacyUploadsIndex = value.indexOf("/image-service/uploads/");
+        if (legacyUploadsIndex >= 0) {
+            String suffix = value.substring(legacyUploadsIndex + "/image-service/uploads/".length());
+            return "/api/images/" + suffix;
+        }
+
+        int uploadsIndex = value.indexOf("/uploads/");
+        if (uploadsIndex >= 0) {
+            String suffix = value.substring(uploadsIndex + "/uploads/".length());
+            return "/api/images/" + suffix;
+        }
+
+        if (!value.contains("/") && value.contains(".")) {
+            return "/api/images/foods/" + value;
+        }
+
+        return value;
     }
 
     private Map<Integer, Map<String, String>> resolveIngredientDetails(List<FoodIngredient> foodIngredients) {
