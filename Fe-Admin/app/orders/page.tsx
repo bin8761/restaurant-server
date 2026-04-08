@@ -227,13 +227,16 @@ export default function OrdersManagementPage() {
         try {
             setLoading(true);
             setError(null);
-            const [sessionsResponse, kitchenQueueResponse] = await Promise.all([
-                api.get("/orders/sessions"),
-                api.get("/kitchen/queue"),
-            ]);
-
+            const sessionsResponse = await api.get("/orders/sessions");
             const nextSessions = sessionsResponse.data || [];
-            const kitchenQueue = kitchenQueueResponse.data || [];
+
+            let kitchenQueue: any[] = [];
+            try {
+                const kitchenQueueResponse = await api.get("/kitchen/queue");
+                kitchenQueue = kitchenQueueResponse.data || [];
+            } catch (kitchenErr) {
+                console.warn("Kitchen queue unavailable, continue without item status", kitchenErr);
+            }
 
             const nextItemStatuses = kitchenQueue.reduce((acc: Record<number, KitchenItemStatus>, item: any) => {
                 if (item.order_detail_id) {
